@@ -1,55 +1,34 @@
-// src/components/layout/AppLayout.js
-import React, { useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useApp } from '../../context/AppContext';
-import Navigation from './Navigation';
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+import { useApp } from '../../contexts/AppContext';
+import Sidebar from './Sidebar';
 import Header from './Header';
-import NotificationToast from './NotificationToast';
+import Breadcrumbs from './Breadcrumbs';
 
 const AppLayout = () => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { user } = useAuth();
-  const { notifications } = useApp();
-  const location = useLocation();
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
+  const { sidebarCollapsed } = useApp();
 
   return (
-    <div className="slds-scope">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/design-system/2.25.1/styles/salesforce-lightning-design-system.min.css" />
+    <div className="h-screen flex bg-salesforce-gray-50">
+      <Sidebar />
       
-      <div className="slds-grid slds-grid_frame slds-grid_vertical">
-        {/* Global Header */}
-        <Header onToggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${
+        sidebarCollapsed ? 'ml-16' : 'ml-64'
+      }`}>
+        <Header />
         
-        <div className="slds-grid slds-grid_frame">
-          {/* Sidebar Navigation */}
-          <Navigation collapsed={sidebarCollapsed} currentPath={location.pathname} />
-          
-          {/* Main Content Area */}
-          <div className={`slds-col slds-grow slds-p-around_none ${sidebarCollapsed ? '' : 'slds-size_5-of-6'}`}>
-            <main className="slds-grid slds-grid_vertical slds-grid_frame" style={{ minHeight: 'calc(100vh - 3.25rem)' }}>
-              <div className="slds-col slds-grow slds-scrollable_y">
-                <Outlet />
-              </div>
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full flex flex-col">
+            <Breadcrumbs />
+            
+            <main className="flex-1 overflow-y-auto bg-salesforce-gray-50 px-6 py-4">
+              <Outlet />
             </main>
           </div>
         </div>
       </div>
-
-      {/* Notification Toasts */}
-      <div className="slds-notify_container slds-is-fixed">
-        {notifications.map((notification, index) => (
-          <NotificationToast
-            key={notification.id || index}
-            notification={notification}
-            style={{ bottom: `${index * 80 + 20}px` }}
-          />
-        ))}
-      </div>
     </div>
   );
 };
+
+export default AppLayout;
