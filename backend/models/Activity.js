@@ -42,10 +42,9 @@ const activitySchema = new mongoose.Schema({
     index: true
   },
   
-  // Date and Time Information
+  // Date and Time Information - FIXED: Removed duplicate index declaration
   dueDate: {
-    type: Date,
-    index: true
+    type: Date
   },
   
   startDate: {
@@ -337,7 +336,7 @@ const activitySchema = new mongoose.Schema({
 // Indexes for better query performance
 activitySchema.index({ createdAt: -1 });
 activitySchema.index({ updatedAt: -1 });
-activitySchema.index({ dueDate: 1 });
+activitySchema.index({ dueDate: 1 }); // Only ONE index for dueDate
 activitySchema.index({ startDate: 1 });
 activitySchema.index({ endDate: 1 });
 activitySchema.index({ ownerId: 1, type: 1 });

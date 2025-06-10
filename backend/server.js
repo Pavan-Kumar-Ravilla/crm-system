@@ -98,6 +98,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Trust proxy for accurate IP addresses behind reverse proxy
 app.set('trust proxy', 1);
 
+// Handle favicon requests to prevent 404 errors
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).send(); // No content
+});
+
 // Health check route
 app.get('/health', async (req, res) => {
   try {
@@ -122,6 +127,86 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Base API route - provides API information
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'CRM API is running',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      auth: {
+        base: '/api/auth',
+        endpoints: [
+          'POST /api/auth/register',
+          'POST /api/auth/login',
+          'POST /api/auth/logout',
+          'GET /api/auth/me',
+          'PUT /api/auth/me',
+          'PUT /api/auth/change-password'
+        ]
+      },
+      leads: {
+        base: '/api/leads',
+        endpoints: [
+          'GET /api/leads',
+          'POST /api/leads',
+          'GET /api/leads/:id',
+          'PUT /api/leads/:id',
+          'DELETE /api/leads/:id',
+          'POST /api/leads/:id/convert'
+        ]
+      },
+      contacts: {
+        base: '/api/contacts',
+        endpoints: [
+          'GET /api/contacts',
+          'POST /api/contacts',
+          'GET /api/contacts/:id',
+          'PUT /api/contacts/:id',
+          'DELETE /api/contacts/:id'
+        ]
+      },
+      accounts: {
+        base: '/api/accounts',
+        endpoints: [
+          'GET /api/accounts',
+          'POST /api/accounts',
+          'GET /api/accounts/:id',
+          'PUT /api/accounts/:id',
+          'DELETE /api/accounts/:id'
+        ]
+      },
+      opportunities: {
+        base: '/api/opportunities',
+        endpoints: [
+          'GET /api/opportunities',
+          'POST /api/opportunities',
+          'GET /api/opportunities/:id',
+          'PUT /api/opportunities/:id',
+          'DELETE /api/opportunities/:id'
+        ]
+      },
+      activities: {
+        base: '/api/activities',
+        endpoints: [
+          'GET /api/activities',
+          'POST /api/activities',
+          'GET /api/activities/:id',
+          'PUT /api/activities/:id',
+          'DELETE /api/activities/:id'
+        ]
+      }
+    },
+    documentation: {
+      health: 'GET /health - Server health check',
+      swagger: 'API documentation available at /api/docs (if enabled)',
+      postman: 'Postman collection available for testing'
+    }
+  });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadRoutes);
@@ -139,6 +224,7 @@ app.get('/', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/health',
+      api: '/api',
       auth: '/api/auth',
       leads: '/api/leads',
       contacts: '/api/contacts',

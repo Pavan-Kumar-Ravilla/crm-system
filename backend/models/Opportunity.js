@@ -54,11 +54,10 @@ const opportunitySchema = new mongoose.Schema({
     default: 10
   },
   
-  // Important Dates
+  // Important Dates - FIXED: Removed duplicate index declaration
   closeDate: {
     type: Date,
     required: [true, 'Close date is required']
-    // Removed duplicate index: true since we create it below with schema.index()
   },
   
   // Opportunity Details
