@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import ListView from '../../components/common/ListView';
@@ -24,7 +24,8 @@ const Leads = () => {
       sortOrder: sortConfig.direction
     }),
     {
-      keepPreviousData: true
+      keepPreviousData: true,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     }
   );
 
@@ -50,22 +51,47 @@ const Leads = () => {
 
   const columns = [
     {
+      key: 'name',
+      label: 'Name',
+      render: (_, row) => (
+        <div className="flex items-center">
+          <div className="h-8 w-8 bg-salesforce-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3">
+            {(row.firstName?.[0] || '').toUpperCase()}{(row.lastName?.[0] || '').toUpperCase()}
+          </div>
+          <div>
+            <p className="font-medium text-salesforce-gray-900">
+              {row.firstName} {row.lastName}
+            </p>
+            <p className="text-sm text-salesforce-gray-500">{row.company}</p>
+          </div>
+        </div>
+      )
+    },
+    {
       key: 'email',
       label: 'Email',
       render: (value) => value ? (
-        <a href={`mailto:${value}`} className="text-salesforce-blue-600 hover:text-salesforce-blue-700">
+        <a 
+          href={`mailto:${value}`} 
+          className="text-salesforce-blue-600 hover:text-salesforce-blue-700"
+          onClick={(e) => e.stopPropagation()}
+        >
           {value}
         </a>
-      ) : '—'
+      ) : <span className="text-salesforce-gray-400">—</span>
     },
     {
       key: 'phone',
       label: 'Phone',
       render: (value) => value ? (
-        <a href={`tel:${value}`} className="text-salesforce-blue-600 hover:text-salesforce-blue-700">
+        <a 
+          href={`tel:${value}`} 
+          className="text-salesforce-blue-600 hover:text-salesforce-blue-700"
+          onClick={(e) => e.stopPropagation()}
+        >
           {value}
         </a>
-      ) : '—'
+      ) : <span className="text-salesforce-gray-400">—</span>
     },
     {
       key: 'status',
@@ -88,17 +114,43 @@ const Leads = () => {
     {
       key: 'leadSource',
       label: 'Source',
-      render: (value) => value || '—'
+      render: (value) => value || <span className="text-salesforce-gray-400">—</span>
     },
     {
-      key: 'ownerId',
+      key: 'rating',
+      label: 'Rating',
+      render: (value) => {
+        if (!value) return <span className="text-salesforce-gray-400">—</span>;
+        
+        return (
+          <span className={classNames(
+            'px-2 py-1 text-xs font-medium rounded-full',
+            {
+              'bg-red-100 text-red-800': value === 'Hot',
+              'bg-yellow-100 text-yellow-800': value === 'Warm',
+              'bg-blue-100 text-blue-800': value === 'Cold',
+            }
+          )}>
+            {value}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'owner',
       label: 'Owner',
-      render: (_, row) => row.ownerId?.fullName || row.ownerId?.firstName + ' ' + row.ownerId?.lastName || '—'
+      render: (_, row) => {
+        const owner = row.owner || row.ownerId;
+        if (!owner) return <span className="text-salesforce-gray-400">—</span>;
+        
+        const name = owner.fullName || `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+        return name || <span className="text-salesforce-gray-400">—</span>;
+      }
     },
     {
       key: 'createdAt',
       label: 'Created',
-      render: (value) => value ? format(new Date(value), 'MMM dd, yyyy') : '—'
+      render: (value) => value ? format(new Date(value), 'MMM dd, yyyy') : <span className="text-salesforce-gray-400">—</span>
     }
   ];
 
@@ -129,19 +181,64 @@ const Leads = () => {
   };
 
   const handleDelete = async (lead) => {
-    await deleteMutation.mutateAsync(lead.id);
+    if (window.confirm(`Are you sure you want to delete lead "${lead.firstName} ${lead.lastName}"?`)) {
+      await deleteMutation.mutateAsync(lead.id);
+    }
   };
 
   const handleBulkDelete = async (selectedIds) => {
-    await bulkDeleteMutation.mutateAsync({ leadIds: selectedIds });
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected leads?`)) {
+      await bulkDeleteMutation.mutateAsync({ leadIds: selectedIds });
+    }
   };
 
-  const handleExport = () => {
-    toast.success('Export functionality will be implemented');
+  const handleExport = (selectedIds = null) => {
+    // Implementation for export functionality
+    const exportData = selectedIds 
+      ? leads.filter(lead => selectedIds.includes(lead.id))
+      : leads;
+    
+    const csvContent = generateCSV(exportData);
+    downloadCSV(csvContent, 'leads-export.csv');
+    toast.success(`Exported ${exportData.length} leads`);
+  };
+
+  const generateCSV = (data) => {
+    const headers = ['First Name', 'Last Name', 'Company', 'Email', 'Phone', 'Status', 'Lead Source', 'Rating', 'Created Date'];
+    const rows = data.map(lead => [
+      lead.firstName || '',
+      lead.lastName || '',
+      lead.company || '',
+      lead.email || '',
+      lead.phone || '',
+      lead.status || '',
+      lead.leadSource || '',
+      lead.rating || '',
+      lead.createdAt ? format(new Date(lead.createdAt), 'yyyy-MM-dd') : ''
+    ]);
+    
+    return [headers, ...rows]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+  };
+
+  const downloadCSV = (content, filename) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleRefresh = () => {
     refetch();
+    toast.success('Leads refreshed');
   };
 
   const leads = leadsData?.data?.leads || [];
@@ -161,30 +258,15 @@ const Leads = () => {
       onEdit={handleEdit}
       onDelete={handleDelete}
       onExport={handleExport}
-      searchPlaceholder="Search leads..."
+      searchPlaceholder="Search leads by name, company, email..."
       createButtonLabel="New Lead"
       pagination={pagination}
       onPageChange={handlePageChange}
       selectable={true}
+      showExport={true}
+      showImport={false}
     />
   );
 };
 
-export default Leads; 'name',
-      label: 'Name',
-      render: (_, row) => (
-        <div className="flex items-center">
-          <div className="h-8 w-8 bg-salesforce-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3">
-            {row.firstName?.[0]}{row.lastName?.[0]}
-          </div>
-          <div>
-            <p className="font-medium text-salesforce-gray-900">
-              {row.firstName} {row.lastName}
-            </p>
-            <p className="text-sm text-salesforce-gray-500">{row.company}</p>
-          </div>
-        </div>
-      )
-    },
-    {
-      key:
+export default Leads;
