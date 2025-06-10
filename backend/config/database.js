@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    // MongoDB connection options
+    // MongoDB connection options (updated for latest Mongoose version)
     const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -11,12 +11,16 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
       socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
       family: 4, // Use IPv4, skip trying IPv6
-      bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0, // Disable mongoose buffering
+      // Removed deprecated options:
+      // bufferCommands: false, // Deprecated in newer versions
+      // bufferMaxEntries: 0, // This was causing the error
     };
 
+    // Use default MongoDB URI if not provided
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/crm-system';
+
     // Connect to MongoDB
-    const conn = await mongoose.connect(process.env.MONGODB_URI, options);
+    const conn = await mongoose.connect(mongoURI, options);
 
     console.log(`
 📊 MongoDB Connected Successfully!
@@ -54,7 +58,10 @@ const connectDB = async () => {
       console.error('Full error details:', error);
     }
     
-    process.exit(1);
+    // Don't exit in development to allow for easy debugging
+    if (process.env.NODE_ENV !== 'development') {
+      process.exit(1);
+    }
   }
 };
 

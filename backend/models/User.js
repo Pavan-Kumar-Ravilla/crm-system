@@ -28,6 +28,7 @@ const userSchema = new mongoose.Schema({
       /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
       'Please enter a valid email address'
     ]
+    // Removed duplicate index: true since unique already creates an index
   },
   password: {
     type: String,
@@ -146,11 +147,11 @@ userSchema.virtual('isLocked').get(function() {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 });
 
-// Indexes
-userSchema.index({ email: 1 });
+// Indexes - Only create one index per field
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ createdAt: -1 });
+// Note: email index is automatically created by unique: true
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {

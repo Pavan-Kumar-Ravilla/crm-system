@@ -273,11 +273,33 @@ const validateQuery = {
   dateTo: query('dateTo')
     .optional()
     .isISO8601()
-    .withMessage('Date to must be a valid date')
+    .withMessage('Date to must be a valid date'),
+    
+  assignedTo: query('assignedTo')
+    .optional()
+    .custom((value) => {
+      if (!mongoose.Types.ObjectId.isValid(value)) {
+        throw new Error('Assigned to must be a valid user ID');
+      }
+      return true;
+    }),
+    
+  source: query('source')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Source must be between 1 and 50 characters'),
+    
+  priority: query('priority')
+    .optional()
+    .isIn(['High', 'Normal', 'Low'])
+    .withMessage('Priority must be High, Normal, or Low')
 };
 
 // Common validation sets for different entities
 const leadValidation = {
+  leadId: validateObjectId(),
+  
   create: [
     validateName('firstName'),
     validateName('lastName'),
@@ -285,20 +307,78 @@ const leadValidation = {
     validateEmail('email', { required: false }),
     validatePhone('phone'),
     validateEnum('status', ['New', 'Contacted', 'Qualified', 'Unqualified']),
-    validateEnum('leadSource', ['Website', 'Phone Inquiry', 'Partner Referral', 'Trade Show', 'Web', 'Other']),
+    validateEnum('leadSource', ['Website', 'Phone Inquiry', 'Partner Referral', 'Trade Show', 'Web', 'Email Campaign', 'Social Media', 'Other']),
     validateText('notes', { max: 1000 })
   ],
   
   update: [
-    validateObjectId(),
     validateName('firstName', { required: false }),
     validateName('lastName', { required: false }),
     validateText('company', { required: false, max: 100 }),
     validateEmail('email', { required: false }),
     validatePhone('phone'),
     validateEnum('status', ['New', 'Contacted', 'Qualified', 'Unqualified'], { required: false }),
-    validateEnum('leadSource', ['Website', 'Phone Inquiry', 'Partner Referral', 'Trade Show', 'Web', 'Other'], { required: false }),
+    validateEnum('leadSource', ['Website', 'Phone Inquiry', 'Partner Referral', 'Trade Show', 'Web', 'Email Campaign', 'Social Media', 'Other'], { required: false }),
     validateText('notes', { max: 1000 })
+  ],
+  
+  convert: [
+    body('createContact').optional().isBoolean().withMessage('createContact must be a boolean'),
+    body('createAccount').optional().isBoolean().withMessage('createAccount must be a boolean'),
+    body('createOpportunity').optional().isBoolean().withMessage('createOpportunity must be a boolean'),
+    body('opportunityData').optional().isObject().withMessage('opportunityData must be an object')
+  ],
+  
+  assign: [
+    body('assignedTo').notEmpty().withMessage('Assigned to user ID is required')
+      .custom((value) => {
+        if (!mongoose.Types.ObjectId.isValid(value)) {
+          throw new Error('Assigned to must be a valid user ID');
+        }
+        return true;
+      })
+  ],
+  
+  addNote: [
+    body('note').notEmpty().withMessage('Note is required')
+      .isLength({ min: 1, max: 1000 }).withMessage('Note must be between 1 and 1000 characters')
+  ],
+  
+  followUp: [
+    body('followUpDate').notEmpty().withMessage('Follow-up date is required')
+      .isISO8601().withMessage('Follow-up date must be a valid date'),
+    body('notes').optional().isLength({ max: 500 }).withMessage('Notes cannot be more than 500 characters')
+  ],
+  
+  bulkUpdate: [
+    body('leadIds').isArray({ min: 1 }).withMessage('Lead IDs must be a non-empty array')
+      .custom((array) => {
+        for (const id of array) {
+          if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error('All lead IDs must be valid ObjectIds');
+          }
+        }
+        return true;
+      }),
+    body('updates').isObject().withMessage('Updates must be an object')
+      .custom((updates) => {
+        if (Object.keys(updates).length === 0) {
+          throw new Error('Updates object cannot be empty');
+        }
+        return true;
+      })
+  ],
+  
+  bulkDelete: [
+    body('leadIds').isArray({ min: 1 }).withMessage('Lead IDs must be a non-empty array')
+      .custom((array) => {
+        for (const id of array) {
+          if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error('All lead IDs must be valid ObjectIds');
+          }
+        }
+        return true;
+      })
   ]
 };
 

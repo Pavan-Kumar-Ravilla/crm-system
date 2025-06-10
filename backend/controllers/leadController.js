@@ -467,6 +467,162 @@ const getRecentLeads = asyncHandler(async (req, res, next) => {
   });
 });
 
+/**
+ * Assign lead to another user
+ * @route POST /api/leads/:id/assign
+ * @access Private (Manager/Admin only)
+ */
+const assignLead = asyncHandler(async (req, res, next) => {
+  if (!['admin', 'manager'].includes(req.user.role)) {
+    return next(new AppError('Access denied. Only managers and admins can assign leads.', 403, 'ACCESS_DENIED'));
+  }
+
+  const { assignedTo } = req.body;
+
+  if (!assignedTo) {
+    return next(new AppError('Please provide user ID to assign lead to', 400, 'MISSING_ASSIGNED_TO'));
+  }
+
+  const lead = await Lead.findById(req.params.id);
+
+  if (!lead) {
+    return next(new AppError('Lead not found', 404, 'LEAD_NOT_FOUND'));
+  }
+
+  lead.assignedTo = assignedTo;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  await lead.populate('assignedTo', 'firstName lastName email');
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Lead assigned successfully',
+    data: {
+      lead
+    }
+  });
+});
+
+/**
+ * Add note to lead
+ * @route POST /api/leads/:id/notes
+ * @access Private
+ */
+const addLeadNote = asyncHandler(async (req, res, next) => {
+  const { note } = req.body;
+
+  if (!note) {
+    return next(new AppError('Please provide a note', 400, 'MISSING_NOTE'));
+  }
+
+  const lead = await Lead.findById(req.params.id);
+
+  if (!lead) {
+    return next(new AppError('Lead not found', 404, 'LEAD_NOT_FOUND'));
+  }
+
+  // Check access permissions
+  if (req.user.role === 'sales_rep' && lead.ownerId.toString() !== req.user._id.toString()) {
+    return next(new AppError('Access denied. You can only add notes to your own leads.', 403, 'ACCESS_DENIED'));
+  }
+
+  // Add note to existing notes
+  const currentNotes = lead.notes || '';
+  const timestamp = new Date().toISOString();
+  const newNote = `[${timestamp}] ${req.user.fullName || req.user.firstName + ' ' + req.user.lastName}: ${note}`;
+  
+  lead.notes = currentNotes ? `${currentNotes}\n\n${newNote}` : newNote;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Note added successfully',
+    data: {
+      lead
+    }
+  });
+});
+
+/**
+ * Get lead activity history
+ * @route GET /api/leads/:id/activities
+ * @access Private
+ */
+const getLeadActivities = asyncHandler(async (req, res, next) => {
+  const { page = 1, limit = 20 } = req.query;
+
+  const lead = await Lead.findById(req.params.id);
+
+  if (!lead) {
+    return next(new AppError('Lead not found', 404, 'LEAD_NOT_FOUND'));
+  }
+
+  // Check access permissions
+  if (req.user.role === 'sales_rep' && lead.ownerId.toString() !== req.user._id.toString()) {
+    return next(new AppError('Access denied. You can only view activities for your own leads.', 403, 'ACCESS_DENIED'));
+  }
+
+  // For now, return a placeholder response
+  // In a real implementation, you would query an activities collection
+  const activities = [];
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      activities,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: 1,
+        totalCount: 0,
+        limit: parseInt(limit)
+      }
+    }
+  });
+});
+
+/**
+ * Schedule follow-up for lead
+ * @route POST /api/leads/:id/follow-up
+ * @access Private
+ */
+const scheduleLeadFollowUp = asyncHandler(async (req, res, next) => {
+  const { followUpDate, notes } = req.body;
+
+  if (!followUpDate) {
+    return next(new AppError('Please provide a follow-up date', 400, 'MISSING_FOLLOWUP_DATE'));
+  }
+
+  const lead = await Lead.findById(req.params.id);
+
+  if (!lead) {
+    return next(new AppError('Lead not found', 404, 'LEAD_NOT_FOUND'));
+  }
+
+  // Check access permissions
+  if (req.user.role === 'sales_rep' && lead.ownerId.toString() !== req.user._id.toString()) {
+    return next(new AppError('Access denied. You can only schedule follow-ups for your own leads.', 403, 'ACCESS_DENIED'));
+  }
+
+  lead.nextActivityDate = new Date(followUpDate);
+  if (notes) {
+    const timestamp = new Date().toISOString();
+    const followUpNote = `[${timestamp}] Follow-up scheduled by ${req.user.fullName || req.user.firstName + ' ' + req.user.lastName}: ${notes}`;
+    lead.notes = lead.notes ? `${lead.notes}\n\n${followUpNote}` : followUpNote;
+  }
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Follow-up scheduled successfully',
+    data: {
+      lead
+    }
+  });
+});
+
 module.exports = {
   getLeads,
   getLead,
@@ -477,5 +633,9 @@ module.exports = {
   getLeadStats,
   bulkUpdateLeads,
   bulkDeleteLeads,
-  getRecentLeads
+  getRecentLeads,
+  assignLead,
+  addLeadNote,
+  getLeadActivities,
+  scheduleLeadFollowUp
 };

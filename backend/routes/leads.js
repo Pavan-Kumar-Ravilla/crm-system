@@ -10,7 +10,11 @@ const {
   getLeadStats,
   bulkUpdateLeads,
   bulkDeleteLeads,
-  getRecentLeads
+  getRecentLeads,
+  assignLead,
+  addLeadNote,
+  getLeadActivities,
+  scheduleLeadFollowUp
 } = require('../controllers/leadController');
 const { authenticate, requireSalesAccess, logActivity } = require('../middleware/auth');
 const { handleValidationErrors } = require('../middleware/errorHandler');
@@ -23,23 +27,31 @@ router.use(authenticate);
 router.use(requireSalesAccess); // Require sales access for all lead operations
 
 /**
- * @route   GET /api/leads
- * @desc    Get all leads with filtering and pagination
- * @access  Private (Sales Rep can see own leads, Manager/Admin can see all)
+ * @route   GET /api/leads/health
+ * @desc    Health check for lead routes
+ * @access  Private
  */
-router.get('/',
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Lead routes are working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
+ * @route   GET /api/leads/stats
+ * @desc    Get lead statistics
+ * @access  Private
+ */
+router.get('/stats',
   [
-    validateQuery.page,
-    validateQuery.limit,
-    validateQuery.sort,
-    validateQuery.search,
-    validateQuery.status,
     validateQuery.dateFrom,
     validateQuery.dateTo
   ],
   handleValidationErrors,
-  logActivity('VIEW_LEADS'),
-  getLeads
+  logActivity('VIEW_LEAD_STATS'),
+  getLeadStats
 );
 
 /**
@@ -55,6 +67,53 @@ router.get('/recent',
 );
 
 /**
+ * @route   PUT /api/leads/bulk-update
+ * @desc    Bulk update leads
+ * @access  Private (Manager/Admin only)
+ */
+router.put('/bulk-update',
+  leadValidation.bulkUpdate,
+  handleValidationErrors,
+  logActivity('BULK_UPDATE_LEADS'),
+  bulkUpdateLeads
+);
+
+/**
+ * @route   DELETE /api/leads/bulk-delete
+ * @desc    Bulk delete leads
+ * @access  Private (Manager/Admin only)
+ */
+router.delete('/bulk-delete',
+  leadValidation.bulkDelete,
+  handleValidationErrors,
+  logActivity('BULK_DELETE_LEADS'),
+  bulkDeleteLeads
+);
+
+/**
+ * @route   GET /api/leads
+ * @desc    Get all leads with filtering and pagination
+ * @access  Private (Sales Rep can see own leads, Manager/Admin can see all)
+ */
+router.get('/',
+  [
+    validateQuery.page,
+    validateQuery.limit,
+    validateQuery.sort,
+    validateQuery.search,
+    validateQuery.status,
+    validateQuery.dateFrom,
+    validateQuery.dateTo,
+    validateQuery.assignedTo,
+    validateQuery.source,
+    validateQuery.priority
+  ],
+  handleValidationErrors,
+  logActivity('VIEW_LEADS'),
+  getLeads
+);
+
+/**
  * @route   POST /api/leads
  * @desc    Create new lead
  * @access  Private
@@ -67,31 +126,13 @@ router.post('/',
 );
 
 /**
- * @route   PUT /api/leads/bulk-update
- * @desc    Bulk update leads
- * @access  Private (Manager/Admin only)
- */
-router.put('/bulk-update',
-  logActivity('BULK_UPDATE_LEADS'),
-  bulkUpdateLeads
-);
-
-/**
- * @route   DELETE /api/leads/bulk-delete
- * @desc    Bulk delete leads
- * @access  Private (Manager/Admin only)
- */
-router.delete('/bulk-delete',
-  logActivity('BULK_DELETE_LEADS'),
-  bulkDeleteLeads
-);
-
-/**
  * @route   GET /api/leads/:id
  * @desc    Get single lead by ID
  * @access  Private
  */
 router.get('/:id',
+  leadValidation.leadId,
+  handleValidationErrors,
   logActivity('VIEW_LEAD'),
   getLead
 );
@@ -102,7 +143,10 @@ router.get('/:id',
  * @access  Private
  */
 router.put('/:id',
-  leadValidation.update,
+  [
+    leadValidation.leadId,
+    leadValidation.update
+  ],
   handleValidationErrors,
   logActivity('UPDATE_LEAD'),
   updateLead
@@ -114,6 +158,8 @@ router.put('/:id',
  * @access  Private
  */
 router.delete('/:id',
+  leadValidation.leadId,
+  handleValidationErrors,
   logActivity('DELETE_LEAD'),
   deleteLead
 );
@@ -123,28 +169,100 @@ router.delete('/:id',
  * @desc    Convert lead to contact/account/opportunity
  * @access  Private
  */
-// Health check for lead routes
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Lead routes are working',
-    timestamp: new Date().toISOString()
-  });
-});
-
-module.exports = router;stats
- * @desc    Get lead statistics
- * @access  Private
- */
-router.get('/stats',
+router.post('/:id/convert',
   [
-    validateQuery.dateFrom,
-    validateQuery.dateTo
+    leadValidation.leadId,
+    leadValidation.convert
   ],
   handleValidationErrors,
-  logActivity('VIEW_LEAD_STATS'),
-  getLeadStats
+  logActivity('CONVERT_LEAD'),
+  convertLead
 );
 
 /**
- * @route   GET /api/leads/
+ * @route   POST /api/leads/:id/assign
+ * @desc    Assign lead to another user
+ * @access  Private (Manager/Admin only)
+ */
+router.post('/:id/assign',
+  [
+    leadValidation.leadId,
+    leadValidation.assign
+  ],
+  handleValidationErrors,
+  logActivity('ASSIGN_LEAD'),
+  assignLead
+);
+
+/**
+ * @route   POST /api/leads/:id/notes
+ * @desc    Add note to lead
+ * @access  Private
+ */
+router.post('/:id/notes',
+  [
+    leadValidation.leadId,
+    leadValidation.addNote
+  ],
+  handleValidationErrors,
+  logActivity('ADD_LEAD_NOTE'),
+  addLeadNote
+);
+
+/**
+ * @route   GET /api/leads/:id/activities
+ * @desc    Get lead activity history
+ * @access  Private
+ */
+router.get('/:id/activities',
+  [
+    leadValidation.leadId,
+    validateQuery.page,
+    validateQuery.limit
+  ],
+  handleValidationErrors,
+  logActivity('VIEW_LEAD_ACTIVITIES'),
+  getLeadActivities
+);
+
+/**
+ * @route   POST /api/leads/:id/follow-up
+ * @desc    Schedule follow-up for lead
+ * @access  Private
+ */
+router.post('/:id/follow-up',
+  [
+    leadValidation.leadId,
+    leadValidation.followUp
+  ],
+  handleValidationErrors,
+  logActivity('SCHEDULE_LEAD_FOLLOWUP'),
+  scheduleLeadFollowUp
+);
+
+// Error handling middleware specific to leads
+router.use((error, req, res, next) => {
+  console.error('Lead route error:', error);
+  
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Validation failed',
+      errors: error.errors
+    });
+  }
+  
+  if (error.name === 'CastError') {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid lead ID format'
+    });
+  }
+  
+  res.status(500).json({
+    status: 'error',
+    message: 'Internal server error in lead operations'
+  });
+});
+
+module.exports = router;

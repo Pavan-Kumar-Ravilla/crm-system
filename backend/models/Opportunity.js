@@ -57,8 +57,8 @@ const opportunitySchema = new mongoose.Schema({
   // Important Dates
   closeDate: {
     type: Date,
-    required: [true, 'Close date is required'],
-    index: true
+    required: [true, 'Close date is required']
+    // Removed duplicate index: true since we create it below with schema.index()
   },
   
   // Opportunity Details
@@ -274,10 +274,10 @@ const opportunitySchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes for better query performance
+// Indexes for better query performance - Create only ONE index per field
 opportunitySchema.index({ createdAt: -1 });
 opportunitySchema.index({ updatedAt: -1 });
-opportunitySchema.index({ closeDate: 1 });
+opportunitySchema.index({ closeDate: 1 }); // Only ONE index for closeDate
 opportunitySchema.index({ amount: -1 });
 opportunitySchema.index({ ownerId: 1, stage: 1 });
 opportunitySchema.index({ accountId: 1, stage: 1 });

@@ -1,14 +1,16 @@
 // backend/server.js
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// Import database connection
+const { connectDB, checkDBHealth } = require('./config/database');
+
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
+const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -29,12 +31,18 @@ app.use(helmet({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP
   message: {
-    error: 'Too many requests from this IP, please try again later.',
+    status: 'error',
+    message: 'Too many requests from this IP, please try again later.',
+    code: 'RATE_LIMIT_EXCEEDED'
   },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
+
+// Apply rate limiting to API routes only
 app.use('/api/', limiter);
 
 // CORS configuration
@@ -43,8 +51,9 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.CLIENT_URL,
       'http://localhost:3000',
-      'http://localhost:3001'
-    ];
+      'http://localhost:3001',
+      'http://127.0.0.1:3000'
+    ].filter(Boolean); // Remove undefined values
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
@@ -52,6 +61,7 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -69,35 +79,47 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid JSON'
+      });
+      return;
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Connect to MongoDB
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error('Database connection error:', error.message);
-    process.exit(1);
-  }
-};
-
-// Connect to database
-connectDB();
+// Trust proxy for accurate IP addresses behind reverse proxy
+app.set('trust proxy', 1);
 
 // Health check route
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const dbHealth = await checkDBHealth();
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Server is running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: dbHealth,
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: 'Health check failed',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
 });
 
 // API Routes
@@ -108,41 +130,107 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/opportunities', opportunityRoutes);
 app.use('/api/activities', activityRoutes);
 
-// 404 handler for undefined routes
-app.use('*', (req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: `Route ${req.originalUrl} not found`
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'CRM API Server is running',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      leads: '/api/leads',
+      contacts: '/api/contacts',
+      accounts: '/api/accounts',
+      opportunities: '/api/opportunities',
+      activities: '/api/activities'
+    }
   });
 });
+
+// 404 handler for undefined routes
+app.use(notFound);
 
 // Global error handling middleware
 app.use(errorHandler);
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
-  console.log(`Unhandled Rejection: ${err.message}`);
-  // Close server & exit process
-  server.close(() => {
-    process.exit(1);
-  });
+  console.log(`❌ Unhandled Rejection: ${err.message}`);
+  if (process.env.NODE_ENV === 'production') {
+    // Close server & exit process in production
+    if (server) {
+      server.close(() => {
+        process.exit(1);
+      });
+    } else {
+      process.exit(1);
+    }
+  }
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  console.log(`Uncaught Exception: ${err.message}`);
+  console.log(`❌ Uncaught Exception: ${err.message}`);
   console.log('Shutting down the server due to uncaught exception');
-  process.exit(1);
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`
-🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}
-📱 Health check: http://localhost:${PORT}/health
-🌐 API base URL: http://localhost:${PORT}/api
-  `);
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM received');
+  if (server) {
+    server.close(() => {
+      console.log('💀 Process terminated');
+    });
+  }
 });
+
+process.on('SIGINT', () => {
+  console.log('👋 SIGINT received');
+  if (server) {
+    server.close(() => {
+      console.log('💀 Process terminated');
+    });
+  }
+});
+
+// Connect to database and start server
+const startServer = async () => {
+  try {
+    // Connect to database
+    await connectDB();
+    
+    // Start server
+    const PORT = process.env.PORT || 5000;
+    const server = app.listen(PORT, () => {
+      console.log(`
+🚀 CRM Server Started Successfully!
+📍 Environment: ${process.env.NODE_ENV || 'development'}
+🌐 Port: ${PORT}
+📱 Health check: http://localhost:${PORT}/health
+🔗 API base URL: http://localhost:${PORT}/api
+📊 Database: Connected
+⏰ Started at: ${new Date().toISOString()}
+      `);
+    });
+
+    // Make server available for graceful shutdown
+    global.server = server;
+    
+    return server;
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  }
+};
+
+// Start the server
+startServer();
 
 module.exports = app;
