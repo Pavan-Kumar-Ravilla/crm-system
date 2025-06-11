@@ -1,4 +1,4 @@
-// backend/routes/auth.js
+// backend/routes/auth.js - Enhanced with better error handling
 const express = require('express');
 const { body } = require('express-validator');
 const {
@@ -84,98 +84,48 @@ const loginValidation = [
     .withMessage('Password is required')
 ];
 
-const changePasswordValidation = [
-  body('currentPassword')
-    .notEmpty()
-    .withMessage('Current password is required'),
-  
-  body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('New password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('New password must contain at least one lowercase letter, one uppercase letter, and one number')
-];
+// Debug middleware to log requests
+const debugAuth = (req, res, next) => {
+  console.log(`Auth ${req.method} ${req.path}:`, {
+    body: req.body,
+    headers: {
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent']
+    }
+  });
+  next();
+};
 
-const forgotPasswordValidation = [
-  body('email')
-    .trim()
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail()
-];
+// Health check route
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Auth routes are working',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
-const resetPasswordValidation = [
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number')
-];
-
-const updateProfileValidation = [
-  body('firstName')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('First name must be between 2 and 50 characters')
-    .matches(/^[a-zA-Z\s]+$/)
-    .withMessage('First name can only contain letters and spaces'),
-  
-  body('lastName')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Last name must be between 2 and 50 characters')
-    .matches(/^[a-zA-Z\s]+$/)
-    .withMessage('Last name can only contain letters and spaces'),
-  
-  body('email')
-    .optional()
-    .trim()
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
-  
-  body('phone')
-    .optional()
-    .trim()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Please provide a valid phone number'),
-  
-  body('department')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Department cannot be more than 100 characters'),
-  
-  body('title')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Title cannot be more than 100 characters'),
-  
-  body('preferences.theme')
-    .optional()
-    .isIn(['light', 'dark'])
-    .withMessage('Theme must be light or dark'),
-  
-  body('preferences.language')
-    .optional()
-    .isIn(['en', 'es', 'fr', 'de'])
-    .withMessage('Language must be one of: en, es, fr, de'),
-  
-  body('preferences.timezone')
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('Timezone cannot be more than 50 characters')
-];
-
-const refreshTokenValidation = [
-  body('refreshToken')
-    .notEmpty()
-    .withMessage('Refresh token is required')
-];
+// Test route to check database connection
+router.get('/test', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const userCount = await User.countDocuments();
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Database connection working',
+      userCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Database connection failed',
+      error: error.message
+    });
+  }
+});
 
 // Public routes (no authentication required)
 
@@ -185,6 +135,7 @@ const refreshTokenValidation = [
  * @access  Public
  */
 router.post('/register', 
+  debugAuth,
   registerValidation,
   handleValidationErrors,
   logActivity('USER_REGISTER'),
@@ -197,6 +148,7 @@ router.post('/register',
  * @access  Public
  */
 router.post('/login',
+  debugAuth,
   loginValidation,
   handleValidationErrors,
   logActivity('USER_LOGIN'),
@@ -209,7 +161,9 @@ router.post('/login',
  * @access  Public
  */
 router.post('/refresh-token',
-  refreshTokenValidation,
+  [
+    body('refreshToken').notEmpty().withMessage('Refresh token is required')
+  ],
   handleValidationErrors,
   refreshToken
 );
@@ -220,7 +174,13 @@ router.post('/refresh-token',
  * @access  Public
  */
 router.post('/forgot-password',
-  forgotPasswordValidation,
+  [
+    body('email')
+      .trim()
+      .isEmail()
+      .withMessage('Please provide a valid email address')
+      .normalizeEmail()
+  ],
   handleValidationErrors,
   logActivity('PASSWORD_RESET_REQUEST'),
   forgotPassword
@@ -232,7 +192,13 @@ router.post('/forgot-password',
  * @access  Public
  */
 router.put('/reset-password/:token',
-  resetPasswordValidation,
+  [
+    body('password')
+      .isLength({ min: 6 })
+      .withMessage('Password must be at least 6 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number')
+  ],
   handleValidationErrors,
   logActivity('PASSWORD_RESET'),
   resetPassword
@@ -267,7 +233,48 @@ router.get('/me',
  */
 router.put('/me',
   authenticate,
-  updateProfileValidation,
+  [
+    body('firstName')
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 50 })
+      .withMessage('First name must be between 2 and 50 characters')
+      .matches(/^[a-zA-Z\s]+$/)
+      .withMessage('First name can only contain letters and spaces'),
+    
+    body('lastName')
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 50 })
+      .withMessage('Last name must be between 2 and 50 characters')
+      .matches(/^[a-zA-Z\s]+$/)
+      .withMessage('Last name can only contain letters and spaces'),
+    
+    body('email')
+      .optional()
+      .trim()
+      .isEmail()
+      .withMessage('Please provide a valid email address')
+      .normalizeEmail(),
+    
+    body('phone')
+      .optional()
+      .trim()
+      .matches(/^[\+]?[1-9][\d]{0,15}$/)
+      .withMessage('Please provide a valid phone number'),
+    
+    body('department')
+      .optional()
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage('Department cannot be more than 100 characters'),
+    
+    body('title')
+      .optional()
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage('Title cannot be more than 100 characters')
+  ],
   handleValidationErrors,
   logActivity('PROFILE_UPDATE'),
   updateMe
@@ -280,7 +287,17 @@ router.put('/me',
  */
 router.put('/change-password',
   authenticate,
-  changePasswordValidation,
+  [
+    body('currentPassword')
+      .notEmpty()
+      .withMessage('Current password is required'),
+    
+    body('newPassword')
+      .isLength({ min: 6 })
+      .withMessage('New password must be at least 6 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('New password must contain at least one lowercase letter, one uppercase letter, and one number')
+  ],
   handleValidationErrors,
   logActivity('PASSWORD_CHANGE'),
   changePassword
@@ -318,14 +335,5 @@ router.post('/resend-verification',
   logActivity('EMAIL_VERIFICATION_RESEND'),
   resendVerification
 );
-
-// Health check for auth routes
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Auth routes are working',
-    timestamp: new Date().toISOString()
-  });
-});
 
 module.exports = router;

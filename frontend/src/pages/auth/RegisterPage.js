@@ -1,4 +1,5 @@
-import React from 'react';
+// src/pages/auth/RegisterPage.js
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +19,7 @@ const registerSchema = yup.object().shape({
 const RegisterPage = () => {
   const { register, isLoading, error } = useAuth();
   const navigate = useNavigate();
+  const [formError, setFormError] = useState('');
 
   const fields = [
     {
@@ -59,10 +61,17 @@ const RegisterPage = () => {
 
   const handleRegister = async (data) => {
     try {
-      await register(data);
+      setFormError('');
+      console.log('Registration data:', data);
+      
+      // Remove confirmPassword before sending to API
+      const { confirmPassword, ...registrationData } = data;
+      
+      await register(registrationData);
       navigate('/dashboard');
     } catch (error) {
-      // Error handling is done in the auth context
+      console.error('Registration form error:', error);
+      // Error is already handled in auth context
     }
   };
 
@@ -88,9 +97,19 @@ const RegisterPage = () => {
         </div>
 
         <Card className="mt-8">
+          {/* Display error from auth context */}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
-              {error}
+              <div className="font-medium">Registration Failed</div>
+              <div className="text-sm mt-1">{error}</div>
+            </div>
+          )}
+
+          {/* Display form-specific errors */}
+          {formError && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+              <div className="font-medium">Error</div>
+              <div className="text-sm mt-1">{formError}</div>
             </div>
           )}
 
@@ -102,6 +121,18 @@ const RegisterPage = () => {
             submitLabel="Create account"
             layout="vertical"
           />
+
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-800 mb-2">
+              Password Requirements:
+            </h4>
+            <ul className="text-xs text-blue-600 space-y-1">
+              <li>• At least 6 characters long</li>
+              <li>• Must contain at least one uppercase letter</li>
+              <li>• Must contain at least one lowercase letter</li>
+              <li>• Must contain at least one number</li>
+            </ul>
+          </div>
         </Card>
       </div>
     </div>

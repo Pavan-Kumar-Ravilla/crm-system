@@ -61,6 +61,49 @@ const authReducer = (state, action) => {
   }
 };
 
+// Helper function to extract error messages
+const extractErrorMessage = (error) => {
+  console.log('Full error object:', error);
+  
+  if (error.response?.data) {
+    const data = error.response.data;
+    
+    // Check for validation errors array
+    if (data.errors && Array.isArray(data.errors)) {
+      return data.errors.map(err => {
+        if (typeof err === 'string') return err;
+        return err.message || err.msg || err.error || JSON.stringify(err);
+      }).join(', ');
+    }
+    
+    // Check for single error message
+    if (data.message) {
+      return data.message;
+    }
+    
+    // Check for error string
+    if (typeof data.error === 'string') {
+      return data.error;
+    }
+    
+    // Check for validation error object
+    if (data.error && data.error.message) {
+      return data.error.message;
+    }
+  }
+  
+  // Network or other errors
+  if (error.code === 'ERR_NETWORK') {
+    return 'Cannot connect to server. Please check if the backend is running.';
+  }
+  
+  if (error.message) {
+    return error.message;
+  }
+  
+  return 'An unexpected error occurred';
+};
+
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
@@ -76,8 +119,9 @@ export const AuthProvider = ({ children }) => {
             payload: { user: response.data.user, token }
           });
         } catch (error) {
+          console.error('Auth initialization error:', error);
           localStorage.removeItem('token');
-          dispatch({ type: 'AUTH_FAILURE', payload: error.message });
+          dispatch({ type: 'AUTH_FAILURE', payload: null });
         }
       } else {
         dispatch({ type: 'AUTH_FAILURE', payload: null });
@@ -90,7 +134,10 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     dispatch({ type: 'AUTH_START' });
     try {
+      console.log('Attempting login with:', { email: credentials.email });
       const response = await authService.login(credentials);
+      console.log('Login response:', response);
+      
       const { user, token } = response.data;
       
       localStorage.setItem('token', token);
@@ -99,7 +146,8 @@ export const AuthProvider = ({ children }) => {
       toast.success(`Welcome back, ${user.firstName}!`);
       return response;
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed';
+      console.error('Login error:', error);
+      const message = extractErrorMessage(error);
       dispatch({ type: 'AUTH_FAILURE', payload: message });
       toast.error(message);
       throw error;
@@ -109,7 +157,15 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     dispatch({ type: 'AUTH_START' });
     try {
+      console.log('Attempting registration with:', { 
+        email: userData.email, 
+        firstName: userData.firstName,
+        lastName: userData.lastName 
+      });
+      
       const response = await authService.register(userData);
+      console.log('Register response:', response);
+      
       const { user, token } = response.data;
       
       localStorage.setItem('token', token);
@@ -118,7 +174,8 @@ export const AuthProvider = ({ children }) => {
       toast.success(`Welcome, ${user.firstName}! Your account has been created.`);
       return response;
     } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+      console.error('Registration error:', error);
+      const message = extractErrorMessage(error);
       dispatch({ type: 'AUTH_FAILURE', payload: message });
       toast.error(message);
       throw error;
@@ -144,7 +201,7 @@ export const AuthProvider = ({ children }) => {
       toast.success('Profile updated successfully');
       return response;
     } catch (error) {
-      const message = error.response?.data?.message || 'Profile update failed';
+      const message = extractErrorMessage(error);
       toast.error(message);
       throw error;
     }
@@ -155,7 +212,7 @@ export const AuthProvider = ({ children }) => {
       await authService.changePassword(passwordData);
       toast.success('Password changed successfully');
     } catch (error) {
-      const message = error.response?.data?.message || 'Password change failed';
+      const message = extractErrorMessage(error);
       toast.error(message);
       throw error;
     }

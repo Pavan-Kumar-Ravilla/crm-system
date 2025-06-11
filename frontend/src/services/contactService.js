@@ -1,0 +1,39 @@
+// frontend/src/services/contactService.js
+import { apiClient } from './apiClient';
+
+export const contactService = {
+  async getContacts(params = {}) {
+    const response = await apiClient.get('/contacts', { params });
+    return response.data;
+  },
+
+  async getContact(id) {
+    const response = await apiClient.get(`/contacts/${id}`);
+    return response.data;
+  },
+
+  async createContact(data) {
+    const response = await apiClient.post('/contacts', data);
+    return response.data;
+  },
+
+  async updateContact(id, data) {
+    const response = await apiClient.put(`/contacts/${id}`, data);
+    return response.data;
+  },
+
+  async deleteContact(id) {
+    const response = await apiClient.delete(`/contacts/${id}`);
+    return response.data;
+  },
+
+  async getContactStats(params = {}) {
+    const response = await apiClient.get('/contacts/stats', { params });
+    return response.data;
+  },
+
+  async getContactsByAccount(accountId) {
+    const response = await apiClient.get(`/contacts/by-account/${accountId}`);
+    return response.data;
+  }
+};

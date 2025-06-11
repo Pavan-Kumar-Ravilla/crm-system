@@ -1,9 +1,11 @@
-import React from 'react';
+// src/pages/auth/LoginPage.js
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
 import DynamicForm from '../../components/forms/DynamicForm';
 import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
 
 const loginSchema = yup.object().shape({
   email: yup.string().email('Invalid email').required('Email is required'),
@@ -13,6 +15,7 @@ const loginSchema = yup.object().shape({
 const LoginPage = () => {
   const { login, isLoading, error } = useAuth();
   const navigate = useNavigate();
+  const [formError, setFormError] = useState('');
 
   const fields = [
     {
@@ -33,10 +36,25 @@ const LoginPage = () => {
 
   const handleLogin = async (data) => {
     try {
+      setFormError('');
       await login(data);
       navigate('/dashboard');
     } catch (error) {
-      // Error handling is done in the auth context
+      console.error('Login form error:', error);
+      // Error is already handled in auth context
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    try {
+      setFormError('');
+      await login({
+        email: 'admin@crm.com',
+        password: 'admin123'
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Demo login error:', error);
     }
   };
 
@@ -62,9 +80,19 @@ const LoginPage = () => {
         </div>
 
         <Card className="mt-8">
+          {/* Display error from auth context */}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
-              {error}
+              <div className="font-medium">Login Failed</div>
+              <div className="text-sm mt-1">{error}</div>
+            </div>
+          )}
+
+          {/* Display form-specific errors */}
+          {formError && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+              <div className="font-medium">Error</div>
+              <div className="text-sm mt-1">{formError}</div>
             </div>
           )}
 
@@ -83,13 +111,24 @@ const LoginPage = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Demo Credentials</span>
+                <span className="px-2 bg-white text-gray-500">Or try demo</span>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                fullWidth
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+              >
+                Demo Login (admin@crm.com)
+              </Button>
             </div>
 
             <div className="mt-4 bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-2">
-                <strong>Demo Account:</strong>
+                <strong>Demo Credentials:</strong>
               </p>
               <p className="text-xs text-gray-500">
                 Email: admin@crm.com<br />
