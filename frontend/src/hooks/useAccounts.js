@@ -1,10 +1,10 @@
 import { useApiQuery, useApiMutation } from './useApi';
-import { apiClient } from '@/services/apiClient';
+import { accountService } from '../services/accountService';
 
 export const useAccounts = (params = {}) => {
   return useApiQuery(
     ['accounts', params],
-    `/accounts?${new URLSearchParams(params).toString()}`,
+    () => accountService.getAccounts(params),
     {
       keepPreviousData: true
     }
@@ -14,7 +14,7 @@ export const useAccounts = (params = {}) => {
 export const useAccount = (id) => {
   return useApiQuery(
     ['account', id],
-    `/accounts/${id}`,
+    () => accountService.getAccount(id),
     {
       enabled: !!id
     }
@@ -23,10 +23,7 @@ export const useAccount = (id) => {
 
 export const useCreateAccount = () => {
   return useApiMutation(
-    async (data) => {
-      const response = await apiClient.post('/accounts', data);
-      return response.data;
-    },
+    (data) => accountService.createAccount(data),
     {
       successMessage: 'Account created successfully',
       invalidateQueries: [['accounts'], ['account-stats']]
@@ -36,10 +33,7 @@ export const useCreateAccount = () => {
 
 export const useUpdateAccount = () => {
   return useApiMutation(
-    async ({ id, data }) => {
-      const response = await apiClient.put(`/accounts/${id}`, data);
-      return response.data;
-    },
+    ({ id, data }) => accountService.updateAccount(id, data),
     {
       successMessage: 'Account updated successfully',
       invalidateQueries: [['accounts'], ['account'], ['account-stats']]
@@ -49,10 +43,7 @@ export const useUpdateAccount = () => {
 
 export const useDeleteAccount = () => {
   return useApiMutation(
-    async (id) => {
-      const response = await apiClient.delete(`/accounts/${id}`);
-      return response.data;
-    },
+    (id) => accountService.deleteAccount(id),
     {
       successMessage: 'Account deleted successfully',
       invalidateQueries: [['accounts'], ['account-stats']]
@@ -63,31 +54,9 @@ export const useDeleteAccount = () => {
 export const useAccountStats = (params = {}) => {
   return useApiQuery(
     ['account-stats', params],
-    `/accounts/stats?${new URLSearchParams(params).toString()}`,
+    () => accountService.getAccountStats(params),
     {
       staleTime: 10 * 60 * 1000
-    }
-  );
-};
-
-export const useAccountSummary = (id) => {
-  return useApiQuery(
-    ['account-summary', id],
-    `/accounts/${id}/summary`,
-    {
-      enabled: !!id,
-      staleTime: 2 * 60 * 1000
-    }
-  );
-};
-
-export const useAccountHierarchy = (id) => {
-  return useApiQuery(
-    ['account-hierarchy', id],
-    `/accounts/${id}/hierarchy`,
-    {
-      enabled: !!id,
-      staleTime: 5 * 60 * 1000
     }
   );
 };

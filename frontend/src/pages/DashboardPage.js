@@ -1,5 +1,4 @@
 import React from 'react';
-import { useQuery } from 'react-query';
 import { 
   TrendingUpIcon, 
   UsersIcon, 
@@ -7,87 +6,28 @@ import {
   DollarSignIcon,
   PlusIcon
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/layout/LoadingSpinner';
+import { useLeadStats } from '../hooks/useLeads';
+import { useContactStats } from '../hooks/useContacts';
+import { useAccountStats } from '../hooks/useAccounts';
+import { useOpportunityStats } from '../hooks/useOpportunities';
 
-// Mock data - replace with actual API calls
-const mockStats = {
-  totalLeads: 1245,
-  totalContacts: 892,
-  totalAccounts: 156,
-  totalRevenue: 2450000,
-  leadsThisMonth: 125,
-  dealsWon: 45,
-  conversionRate: 12.5
-};
-
-const mockRevenueData = [
-  { month: 'Jan', revenue: 180000, leads: 95, deals: 12 },
-  { month: 'Feb', revenue: 220000, leads: 110, deals: 15 },
-  { month: 'Mar', revenue: 190000, leads: 85, deals: 11 },
-  { month: 'Apr', revenue: 280000, leads: 130, deals: 18 },
-  { month: 'May', revenue: 310000, leads: 145, deals: 22 },
-  { month: 'Jun', revenue: 290000, leads: 125, deals: 20 }
-];
-
-const mockPipelineData = [
-  { stage: 'Prospecting', count: 45, value: 450000 },
-  { stage: 'Qualification', count: 32, value: 380000 },
-  { stage: 'Proposal', count: 18, value: 290000 },
-  { stage: 'Negotiation', count: 12, value: 180000 },
-  { stage: 'Closed Won', count: 8, value: 120000 }
-];
-
-const mockLeadSources = [
-  { name: 'Website', value: 35, color: '#3B82F6' },
-  { name: 'Email Campaign', value: 25, color: '#10B981' },
-  { name: 'Social Media', value: 20, color: '#F59E0B' },
-  { name: 'Referral', value: 15, color: '#EF4444' },
-  { name: 'Other', value: 5, color: '#6B7280' }
-];
-
-const mockRecentActivities = [
-  {
-    id: 1,
-    type: 'lead_created',
-    description: 'New lead created: John Smith from Acme Corp',
-    timestamp: '2 hours ago',
-    user: 'Sarah Johnson'
-  },
-  {
-    id: 2,
-    type: 'deal_won',
-    description: 'Deal closed: $50,000 with TechStart Inc',
-    timestamp: '4 hours ago',
-    user: 'Mike Davis'
-  },
-  {
-    id: 3,
-    type: 'meeting_scheduled',
-    description: 'Meeting scheduled with Global Solutions',
-    timestamp: '6 hours ago',
-    user: 'Emily Brown'
-  },
-  {
-    id: 4,
-    type: 'contact_updated',
-    description: 'Contact information updated for Jane Doe',
-    timestamp: '8 hours ago',
-    user: 'Tom Wilson'
-  }
-];
-
-const StatCard = ({ title, value, icon: Icon, change, changeType }) => (
+const StatCard = ({ title, value, icon: Icon, change, changeType, isLoading }) => (
   <Card className="p-6">
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className="text-3xl font-bold text-gray-900">{value}</p>
-        {change && (
+        {isLoading ? (
+          <div className="h-8 w-20 bg-gray-200 animate-pulse rounded mt-1"></div>
+        ) : (
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+        )}
+        {change && !isLoading && (
           <p className={`text-sm ${changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>
             {changeType === 'positive' ? '+' : ''}{change}% from last month
           </p>
@@ -103,16 +43,23 @@ const StatCard = ({ title, value, icon: Icon, change, changeType }) => (
 const DashboardPage = () => {
   const { user } = useAuth();
 
-  // In a real app, you would fetch data using React Query
-  const { data: stats, isLoading } = useQuery(
-    'dashboard-stats',
-    () => Promise.resolve(mockStats),
-    { staleTime: 5 * 60 * 1000 }
-  );
+  // Fetch dashboard data
+  const { data: leadStats, isLoading: loadingLeads } = useLeadStats();
+  const { data: contactStats, isLoading: loadingContacts } = useContactStats();
+  const { data: accountStats, isLoading: loadingAccounts } = useAccountStats();
+  const { data: opportunityStats, isLoading: loadingOpportunities } = useOpportunityStats();
 
-  if (isLoading) {
-    return <LoadingSpinner size="lg" className="py-12" />;
-  }
+  const isLoading = loadingLeads || loadingContacts || loadingAccounts || loadingOpportunities;
+
+  // Mock data for charts (replace with real data from API)
+  const mockRevenueData = [
+    { month: 'Jan', revenue: 180000 },
+    { month: 'Feb', revenue: 220000 },
+    { month: 'Mar', revenue: 190000 },
+    { month: 'Apr', revenue: 280000 },
+    { month: 'May', revenue: 310000 },
+    { month: 'Jun', revenue: 290000 }
+  ];
 
   return (
     <div>
@@ -133,31 +80,35 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Leads"
-          value={stats.totalLeads.toLocaleString()}
+          value={leadStats?.data?.stats?.totalLeads?.toLocaleString() || '0'}
           icon={UsersIcon}
           change={8.2}
           changeType="positive"
+          isLoading={loadingLeads}
         />
         <StatCard
           title="Total Contacts"
-          value={stats.totalContacts.toLocaleString()}
+          value={contactStats?.data?.stats?.totalContacts?.toLocaleString() || '0'}
           icon={BuildingIcon}
           change={3.1}
           changeType="positive"
+          isLoading={loadingContacts}
         />
         <StatCard
           title="Total Accounts"
-          value={stats.totalAccounts.toLocaleString()}
+          value={accountStats?.data?.stats?.totalAccounts?.toLocaleString() || '0'}
           icon={DollarSignIcon}
           change={-1.2}
           changeType="negative"
+          isLoading={loadingAccounts}
         />
         <StatCard
           title="Revenue"
-          value={`$${(stats.totalRevenue / 1000000).toFixed(1)}M`}
+          value={`$${((opportunityStats?.data?.stats?.totalAmount || 0) / 1000000).toFixed(1)}M`}
           icon={TrendingUpIcon}
           change={12.5}
           changeType="positive"
+          isLoading={loadingOpportunities}
         />
       </div>
 
@@ -184,67 +135,77 @@ const DashboardPage = () => {
           </div>
         </Card>
 
-        {/* Pipeline Chart */}
-        <Card title="Sales Pipeline" className="p-6">
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockPipelineData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="stage" />
-                <YAxis />
-                <Tooltip formatter={(value) => [value.toLocaleString(), 'Count']} />
-                <Bar dataKey="count" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Quick Stats */}
+        <Card title="Quick Overview" className="p-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Conversion Rate</span>
+              <span className="font-semibold">
+                {leadStats?.data?.stats?.conversionRate || 0}%
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Win Rate</span>
+              <span className="font-semibold">
+                {opportunityStats?.data?.stats?.winRate || 0}%
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Average Deal Size</span>
+              <span className="font-semibold">
+                ${(opportunityStats?.data?.stats?.avgAmount || 0).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Active Opportunities</span>
+              <span className="font-semibold">
+                {opportunityStats?.data?.stats?.totalOpportunities || 0}
+              </span>
+            </div>
           </div>
         </Card>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Bottom Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Lead Sources */}
-        <Card title="Lead Sources" className="p-6">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={mockLeadSources}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, value }) => `${name} ${value}%`}
-                >
-                  {mockLeadSources.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+        <Card title="Lead Sources Distribution" className="p-6">
+          {loadingLeads ? (
+            <div className="h-32 flex items-center justify-center">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {leadStats?.data?.stats?.bySource?.map((source, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-gray-600">{source.source}</span>
+                  <span className="font-semibold">{source.count}</span>
+                </div>
+              )) || (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              )}
+            </div>
+          )}
         </Card>
 
-        {/* Recent Activities */}
-        <Card title="Recent Activities" className="p-6 lg:col-span-2">
-          <div className="space-y-4">
-            {mockRecentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2"></div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-900">{activity.description}</p>
-                  <p className="text-xs text-gray-500">
-                    {activity.timestamp} • {activity.user}
-                  </p>
+        {/* Opportunity Stages */}
+        <Card title="Opportunity Pipeline" className="p-6">
+          {loadingOpportunities ? (
+            <div className="h-32 flex items-center justify-center">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {opportunityStats?.data?.stats?.byStage?.map((stage, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-gray-600">{stage.stage}</span>
+                  <span className="font-semibold">{stage.count}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <Button variant="ghost" size="sm" fullWidth>
-              View all activities
-            </Button>
-          </div>
+              )) || (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              )}
+            </div>
+          )}
         </Card>
       </div>
     </div>

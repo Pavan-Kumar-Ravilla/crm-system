@@ -1,8 +1,3 @@
-// backend/middleware/errorHandler.js
-
-/**
- * Custom Error class for application-specific errors
- */
 class AppError extends Error {
   constructor(message, statusCode, code = null) {
     super(message);
@@ -15,17 +10,11 @@ class AppError extends Error {
   }
 }
 
-/**
- * Handle MongoDB Cast Error (Invalid ObjectId)
- */
 const handleCastErrorDB = (err) => {
   const message = `Invalid ${err.path}: ${err.value}`;
   return new AppError(message, 400, 'INVALID_ID');
 };
 
-/**
- * Handle MongoDB Duplicate Field Error
- */
 const handleDuplicateFieldsDB = (err) => {
   const field = Object.keys(err.keyValue)[0];
   const value = err.keyValue[field];
@@ -33,33 +22,28 @@ const handleDuplicateFieldsDB = (err) => {
   return new AppError(message, 400, 'DUPLICATE_FIELD');
 };
 
-/**
- * Handle MongoDB Validation Error
- */
 const handleValidationErrorDB = (err) => {
   const errors = Object.values(err.errors).map(el => el.message);
   const message = `Invalid input data: ${errors.join('. ')}`;
   return new AppError(message, 400, 'VALIDATION_ERROR');
 };
 
-/**
- * Handle JWT Invalid Token Error
- */
 const handleJWTError = () => {
   return new AppError('Invalid token. Please log in again!', 401, 'INVALID_TOKEN');
 };
 
-/**
- * Handle JWT Expired Token Error
- */
 const handleJWTExpiredError = () => {
   return new AppError('Your token has expired! Please log in again.', 401, 'TOKEN_EXPIRED');
 };
 
-/**
- * Send error response in development
- */
 const sendErrorDev = (err, res) => {
+  console.error('Error details:', {
+    message: err.message,
+    statusCode: err.statusCode,
+    stack: err.stack,
+    code: err.code
+  });
+
   res.status(err.statusCode).json({
     status: err.status,
     error: err,
@@ -70,9 +54,6 @@ const sendErrorDev = (err, res) => {
   });
 };
 
-/**
- * Send error response in production
- */
 const sendErrorProd = (err, res) => {
   // Operational, trusted error: send message to client
   if (err.isOperational) {
@@ -95,23 +76,22 @@ const sendErrorProd = (err, res) => {
   }
 };
 
-/**
- * Global error handling middleware
- */
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  // Log error details
+  // Log error details in development
   if (process.env.NODE_ENV === 'development') {
-    console.error('Error details:', {
-      message: err.message,
-      statusCode: err.statusCode,
-      stack: err.stack,
-      url: req.url,
+    console.error('Error in request:', {
       method: req.method,
-      userAgent: req.get('User-Agent'),
-      ip: req.ip
+      url: req.url,
+      body: req.body,
+      params: req.params,
+      query: req.query,
+      headers: req.headers,
+      user: req.user?.email,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
     });
   }
 
@@ -121,7 +101,7 @@ const errorHandler = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    // Handle specific error types
+    // Handle specific MongoDB errors
     if (error.name === 'CastError') error = handleCastErrorDB(error);
     if (error.code === 11000) error = handleDuplicateFieldsDB(error);
     if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
@@ -132,26 +112,17 @@ const errorHandler = (err, req, res, next) => {
   }
 };
 
-/**
- * Async error handler wrapper
- */
 const asyncHandler = (fn) => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
-/**
- * 404 Not Found handler
- */
 const notFound = (req, res, next) => {
   const error = new AppError(`Not Found - ${req.originalUrl}`, 404, 'NOT_FOUND');
   next(error);
 };
 
-/**
- * Validation error handler for express-validator
- */
 const handleValidationErrors = (req, res, next) => {
   const { validationResult } = require('express-validator');
   const errors = validationResult(req);
@@ -177,21 +148,16 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-/**
- * Rate limit error handler
- */
 const handleRateLimit = (req, res) => {
   res.status(429).json({
     status: 'error',
     message: 'Too many requests from this IP, please try again later.',
     code: 'RATE_LIMIT_EXCEEDED',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    retryAfter: Math.round(req.rateLimit.resetTime / 1000)
   });
 };
 
-/**
- * CORS error handler
- */
 const handleCorsError = (err, req, res, next) => {
   if (err.message && err.message.includes('CORS')) {
     return res.status(403).json({

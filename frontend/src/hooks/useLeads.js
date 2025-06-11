@@ -1,10 +1,10 @@
 import { useApiQuery, useApiMutation } from './useApi';
-import { apiClient } from '@/services/apiClient';
+import { leadService } from '../services/leadService';
 
 export const useLeads = (params = {}) => {
   return useApiQuery(
     ['leads', params],
-    `/leads?${new URLSearchParams(params).toString()}`,
+    () => leadService.getLeads(params),
     {
       keepPreviousData: true
     }
@@ -14,7 +14,7 @@ export const useLeads = (params = {}) => {
 export const useLead = (id) => {
   return useApiQuery(
     ['lead', id],
-    `/leads/${id}`,
+    () => leadService.getLead(id),
     {
       enabled: !!id
     }
@@ -23,10 +23,7 @@ export const useLead = (id) => {
 
 export const useCreateLead = () => {
   return useApiMutation(
-    async (data) => {
-      const response = await apiClient.post('/leads', data);
-      return response.data;
-    },
+    (data) => leadService.createLead(data),
     {
       successMessage: 'Lead created successfully',
       invalidateQueries: [['leads'], ['lead-stats']]
@@ -36,10 +33,7 @@ export const useCreateLead = () => {
 
 export const useUpdateLead = () => {
   return useApiMutation(
-    async ({ id, data }) => {
-      const response = await apiClient.put(`/leads/${id}`, data);
-      return response.data;
-    },
+    ({ id, data }) => leadService.updateLead(id, data),
     {
       successMessage: 'Lead updated successfully',
       invalidateQueries: [['leads'], ['lead'], ['lead-stats']]
@@ -49,10 +43,7 @@ export const useUpdateLead = () => {
 
 export const useDeleteLead = () => {
   return useApiMutation(
-    async (id) => {
-      const response = await apiClient.delete(`/leads/${id}`);
-      return response.data;
-    },
+    (id) => leadService.deleteLead(id),
     {
       successMessage: 'Lead deleted successfully',
       invalidateQueries: [['leads'], ['lead-stats']]
@@ -62,10 +53,7 @@ export const useDeleteLead = () => {
 
 export const useConvertLead = () => {
   return useApiMutation(
-    async ({ id, conversionData }) => {
-      const response = await apiClient.post(`/leads/${id}/convert`, conversionData);
-      return response.data;
-    },
+    ({ id, conversionData }) => leadService.convertLead(id, conversionData),
     {
       successMessage: 'Lead converted successfully',
       invalidateQueries: [['leads'], ['contacts'], ['accounts'], ['opportunities']]
@@ -76,35 +64,9 @@ export const useConvertLead = () => {
 export const useLeadStats = (params = {}) => {
   return useApiQuery(
     ['lead-stats', params],
-    `/leads/stats?${new URLSearchParams(params).toString()}`,
+    () => leadService.getLeadStats(params),
     {
       staleTime: 10 * 60 * 1000 // 10 minutes for stats
-    }
-  );
-};
-
-export const useBulkUpdateLeads = () => {
-  return useApiMutation(
-    async ({ leadIds, updates }) => {
-      const response = await apiClient.put('/leads/bulk-update', { leadIds, updates });
-      return response.data;
-    },
-    {
-      successMessage: 'Leads updated successfully',
-      invalidateQueries: [['leads'], ['lead-stats']]
-    }
-  );
-};
-
-export const useBulkDeleteLeads = () => {
-  return useApiMutation(
-    async (leadIds) => {
-      const response = await apiClient.delete('/leads/bulk-delete', { data: { leadIds } });
-      return response.data;
-    },
-    {
-      successMessage: 'Leads deleted successfully',
-      invalidateQueries: [['leads'], ['lead-stats']]
     }
   );
 };

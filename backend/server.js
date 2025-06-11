@@ -1,4 +1,3 @@
-// backend/server.js
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -29,36 +28,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP
-  message: {
-    status: 'error',
-    message: 'Too many requests from this IP, please try again later.',
-    code: 'RATE_LIMIT_EXCEEDED'
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-
-// Apply rate limiting to API routes only
-app.use('/api/', limiter);
-
-// CORS configuration
+// Enhanced CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       process.env.CLIENT_URL,
       'http://localhost:3000',
       'http://localhost:3001',
-      'http://127.0.0.1:3000'
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001'
     ].filter(Boolean); // Remove undefined values
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
@@ -66,10 +50,35 @@ const corsOptions = {
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Increased for development
+  message: {
+    status: 'error',
+    message: 'Too many requests from this IP, please try again later.',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for health checks
+    return req.path === '/health' || req.path === '/api/health';
+  }
+});
+
+// Apply rate limiting to API routes only
+app.use('/api/', limiter);
 
 // Logging
 if (process.env.NODE_ENV === 'development') {
@@ -78,16 +87,18 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-// Body parsing middleware
+// Body parsing middleware with increased limits
 app.use(express.json({ 
   limit: '10mb',
   verify: (req, res, buf) => {
     try {
       JSON.parse(buf);
     } catch (e) {
+      console.error('Invalid JSON received:', e.message);
       res.status(400).json({
         status: 'error',
-        message: 'Invalid JSON'
+        message: 'Invalid JSON format',
+        code: 'INVALID_JSON'
       });
       return;
     }
@@ -100,7 +111,7 @@ app.set('trust proxy', 1);
 
 // Handle favicon requests to prevent 404 errors
 app.get('/favicon.ico', (req, res) => {
-  res.status(204).send(); // No content
+  res.status(204).send();
 });
 
 // Health check route
@@ -115,7 +126,8 @@ app.get('/health', async (req, res) => {
       environment: process.env.NODE_ENV || 'development',
       database: dbHealth,
       uptime: process.uptime(),
-      memory: process.memoryUsage()
+      memory: process.memoryUsage(),
+      version: '1.0.0'
     });
   } catch (error) {
     res.status(503).json({
@@ -135,74 +147,14 @@ app.get('/api', (req, res) => {
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
+    documentation: 'https://api-docs.example.com',
     endpoints: {
-      auth: {
-        base: '/api/auth',
-        endpoints: [
-          'POST /api/auth/register',
-          'POST /api/auth/login',
-          'POST /api/auth/logout',
-          'GET /api/auth/me',
-          'PUT /api/auth/me',
-          'PUT /api/auth/change-password'
-        ]
-      },
-      leads: {
-        base: '/api/leads',
-        endpoints: [
-          'GET /api/leads',
-          'POST /api/leads',
-          'GET /api/leads/:id',
-          'PUT /api/leads/:id',
-          'DELETE /api/leads/:id',
-          'POST /api/leads/:id/convert'
-        ]
-      },
-      contacts: {
-        base: '/api/contacts',
-        endpoints: [
-          'GET /api/contacts',
-          'POST /api/contacts',
-          'GET /api/contacts/:id',
-          'PUT /api/contacts/:id',
-          'DELETE /api/contacts/:id'
-        ]
-      },
-      accounts: {
-        base: '/api/accounts',
-        endpoints: [
-          'GET /api/accounts',
-          'POST /api/accounts',
-          'GET /api/accounts/:id',
-          'PUT /api/accounts/:id',
-          'DELETE /api/accounts/:id'
-        ]
-      },
-      opportunities: {
-        base: '/api/opportunities',
-        endpoints: [
-          'GET /api/opportunities',
-          'POST /api/opportunities',
-          'GET /api/opportunities/:id',
-          'PUT /api/opportunities/:id',
-          'DELETE /api/opportunities/:id'
-        ]
-      },
-      activities: {
-        base: '/api/activities',
-        endpoints: [
-          'GET /api/activities',
-          'POST /api/activities',
-          'GET /api/activities/:id',
-          'PUT /api/activities/:id',
-          'DELETE /api/activities/:id'
-        ]
-      }
-    },
-    documentation: {
-      health: 'GET /health - Server health check',
-      swagger: 'API documentation available at /api/docs (if enabled)',
-      postman: 'Postman collection available for testing'
+      auth: '/api/auth',
+      leads: '/api/leads',
+      contacts: '/api/contacts',
+      accounts: '/api/accounts',
+      opportunities: '/api/opportunities',
+      activities: '/api/activities'
     }
   });
 });
@@ -222,16 +174,9 @@ app.get('/', (req, res) => {
     message: 'CRM API Server is running',
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
-    endpoints: {
-      health: '/health',
-      api: '/api',
-      auth: '/api/auth',
-      leads: '/api/leads',
-      contacts: '/api/contacts',
-      accounts: '/api/accounts',
-      opportunities: '/api/opportunities',
-      activities: '/api/activities'
-    }
+    documentation: 'https://api-docs.example.com',
+    health: '/health',
+    api: '/api'
   });
 });
 
@@ -241,78 +186,99 @@ app.use(notFound);
 // Global error handling middleware
 app.use(errorHandler);
 
-// Handle unhandled promise rejections
+// Enhanced error handling for uncaught exceptions
 process.on('unhandledRejection', (err, promise) => {
   console.log(`❌ Unhandled Rejection: ${err.message}`);
-  if (process.env.NODE_ENV === 'production') {
-    // Close server & exit process in production
-    if (server) {
-      server.close(() => {
-        process.exit(1);
-      });
-    } else {
+  console.error(err.stack);
+  
+  // Close server & exit process gracefully
+  if (global.server) {
+    global.server.close(() => {
+      console.log('🔴 Server closed due to unhandled rejection');
       process.exit(1);
-    }
-  }
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.log(`❌ Uncaught Exception: ${err.message}`);
-  console.log('Shutting down the server due to uncaught exception');
-  if (process.env.NODE_ENV === 'production') {
+    });
+  } else {
     process.exit(1);
   }
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM received');
-  if (server) {
-    server.close(() => {
-      console.log('💀 Process terminated');
-    });
-  }
+process.on('uncaughtException', (err) => {
+  console.log(`❌ Uncaught Exception: ${err.message}`);
+  console.error(err.stack);
+  console.log('🔴 Shutting down server due to uncaught exception');
+  process.exit(1);
 });
 
-process.on('SIGINT', () => {
-  console.log('👋 SIGINT received');
-  if (server) {
-    server.close(() => {
-      console.log('💀 Process terminated');
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  console.log(`\n👋 ${signal} received`);
+  
+  if (global.server) {
+    global.server.close(() => {
+      console.log('💀 HTTP server closed');
+      
+      // Close database connection
+      const mongoose = require('mongoose');
+      mongoose.connection.close(() => {
+        console.log('🔌 Database connection closed');
+        process.exit(0);
+      });
     });
+    
+    // Force close after 10 seconds
+    setTimeout(() => {
+      console.log('⚠️  Forcing server shutdown...');
+      process.exit(1);
+    }, 10000);
+  } else {
+    process.exit(0);
   }
-});
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Connect to database and start server
 const startServer = async () => {
   try {
+    console.log('🚀 Starting CRM Backend Server...\n');
+    
     // Connect to database
     await connectDB();
     
     // Start server
     const PORT = process.env.PORT || 5000;
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`
-🚀 CRM Server Started Successfully!
+🎉 CRM Server Started Successfully!
 📍 Environment: ${process.env.NODE_ENV || 'development'}
 🌐 Port: ${PORT}
-📱 Health check: http://localhost:${PORT}/health
-🔗 API base URL: http://localhost:${PORT}/api
+🏠 Local: http://localhost:${PORT}
+📱 Health: http://localhost:${PORT}/health
+🔗 API: http://localhost:${PORT}/api
 📊 Database: Connected
-⏰ Started at: ${new Date().toISOString()}
+⏰ Started: ${new Date().toISOString()}
       `);
     });
 
     // Make server available for graceful shutdown
     global.server = server;
     
+    // Handle server errors
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use`);
+        process.exit(1);
+      } else {
+        console.error('❌ Server error:', error);
+      }
+    });
+    
     return server;
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    console.error(error.stack);
+    process.exit(1);
   }
 };
 

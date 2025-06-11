@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 // Create axios instance
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -30,6 +30,8 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('API Error:', error);
+    
     if (error.response?.status === 401) {
       // Token expired or invalid
       localStorage.removeItem('token');
@@ -39,8 +41,10 @@ apiClient.interceptors.response.use(
       toast.error('Access denied. You do not have permission.');
     } else if (error.response?.status >= 500) {
       toast.error('Server error. Please try again later.');
-    } else if (error.code === 'NETWORK_ERROR') {
-      toast.error('Network error. Please check your connection.');
+    } else if (error.code === 'ECONNABORTED') {
+      toast.error('Request timeout. Please try again.');
+    } else if (error.code === 'ERR_NETWORK') {
+      toast.error('Network error. Please check your connection and ensure the backend server is running.');
     }
     
     return Promise.reject(error);

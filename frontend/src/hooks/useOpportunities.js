@@ -1,10 +1,10 @@
 import { useApiQuery, useApiMutation } from './useApi';
-import { apiClient } from '@/services/apiClient';
+import { opportunityService } from '../services/opportunityService';
 
 export const useOpportunities = (params = {}) => {
   return useApiQuery(
     ['opportunities', params],
-    `/opportunities?${new URLSearchParams(params).toString()}`,
+    () => opportunityService.getOpportunities(params),
     {
       keepPreviousData: true
     }
@@ -14,7 +14,7 @@ export const useOpportunities = (params = {}) => {
 export const useOpportunity = (id) => {
   return useApiQuery(
     ['opportunity', id],
-    `/opportunities/${id}`,
+    () => opportunityService.getOpportunity(id),
     {
       enabled: !!id
     }
@@ -23,10 +23,7 @@ export const useOpportunity = (id) => {
 
 export const useCreateOpportunity = () => {
   return useApiMutation(
-    async (data) => {
-      const response = await apiClient.post('/opportunities', data);
-      return response.data;
-    },
+    (data) => opportunityService.createOpportunity(data),
     {
       successMessage: 'Opportunity created successfully',
       invalidateQueries: [['opportunities'], ['opportunity-stats'], ['pipeline']]
@@ -36,10 +33,7 @@ export const useCreateOpportunity = () => {
 
 export const useUpdateOpportunity = () => {
   return useApiMutation(
-    async ({ id, data }) => {
-      const response = await apiClient.put(`/opportunities/${id}`, data);
-      return response.data;
-    },
+    ({ id, data }) => opportunityService.updateOpportunity(id, data),
     {
       successMessage: 'Opportunity updated successfully',
       invalidateQueries: [['opportunities'], ['opportunity'], ['opportunity-stats'], ['pipeline']]
@@ -49,10 +43,7 @@ export const useUpdateOpportunity = () => {
 
 export const useDeleteOpportunity = () => {
   return useApiMutation(
-    async (id) => {
-      const response = await apiClient.delete(`/opportunities/${id}`);
-      return response.data;
-    },
+    (id) => opportunityService.deleteOpportunity(id),
     {
       successMessage: 'Opportunity deleted successfully',
       invalidateQueries: [['opportunities'], ['opportunity-stats'], ['pipeline']]
@@ -63,7 +54,7 @@ export const useDeleteOpportunity = () => {
 export const useOpportunityStats = (params = {}) => {
   return useApiQuery(
     ['opportunity-stats', params],
-    `/opportunities/stats?${new URLSearchParams(params).toString()}`,
+    () => opportunityService.getOpportunityStats(params),
     {
       staleTime: 10 * 60 * 1000
     }
@@ -73,19 +64,9 @@ export const useOpportunityStats = (params = {}) => {
 export const usePipelineData = (params = {}) => {
   return useApiQuery(
     ['pipeline', params],
-    `/opportunities/pipeline?${new URLSearchParams(params).toString()}`,
+    () => opportunityService.getPipelineData(params),
     {
       staleTime: 5 * 60 * 1000
-    }
-  );
-};
-
-export const useForecastData = (params = {}) => {
-  return useApiQuery(
-    ['forecast', params],
-    `/opportunities/forecast?${new URLSearchParams(params).toString()}`,
-    {
-      staleTime: 10 * 60 * 1000
     }
   );
 };
