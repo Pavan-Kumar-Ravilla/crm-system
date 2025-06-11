@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as yup from 'yup';
-import { useAuth } from '@/context/AuthContext';
-import DynamicForm from '@/components/forms/DynamicForm';
-import Card from '@/components/ui/Card';
+import { useAuth } from '../../context/AuthContext';
+import DynamicForm from '../../components/forms/DynamicForm';
+import Card from '../../components/ui/Card';
 
 const loginSchema = yup.object().shape({
   email: yup.string().email('Invalid email').required('Email is required'),

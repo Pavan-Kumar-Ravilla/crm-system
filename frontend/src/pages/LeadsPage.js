@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { PlusIcon, DownloadIcon } from 'lucide-react';
-import PageHeader from '@/components/layout/PageHeader';
-import DataTable from '@/components/ui/DataTable';
-import Modal from '@/components/ui/Modal';
-import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
-import LeadForm from '@/components/forms/LeadForm';
-import LoadingSpinner from '@/components/layout/LoadingSpinner';
-import EmptyState from '@/components/layout/EmptyState';
+import { PlusIcon, DownloadIcon, UsersIcon } from 'lucide-react';
+import PageHeader from '../components/layout/PageHeader';
+import DataTable from '../components/ui/DataTable';
+import Modal from '../components/ui/Modal';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import LeadForm from '../components/forms/LeadForm';
+import LoadingSpinner from '../components/layout/LoadingSpinner';
+import EmptyState from '../components/layout/EmptyState';
 
 // Mock data - replace with actual API calls
 const mockLeads = [

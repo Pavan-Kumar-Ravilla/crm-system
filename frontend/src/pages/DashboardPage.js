@@ -3,17 +3,17 @@ import { useQuery } from 'react-query';
 import { 
   TrendingUpIcon, 
   UsersIcon, 
-  BuildingOfficeIcon, 
-  CurrencyDollarIcon,
+  BuildingIcon, 
+  DollarSignIcon,
   PlusIcon
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { useAuth } from '@/context/AuthContext';
-import PageHeader from '@/components/layout/PageHeader';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/layout/LoadingSpinner';
+import { useAuth } from '../context/AuthContext';
+import PageHeader from '../components/layout/PageHeader';
+import Card from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import LoadingSpinner from '../components/layout/LoadingSpinner';
 
 // Mock data - replace with actual API calls
 const mockStats = {
@@ -142,14 +142,14 @@ const DashboardPage = () => {
         <StatCard
           title="Total Contacts"
           value={stats.totalContacts.toLocaleString()}
-          icon={BuildingOfficeIcon}
+          icon={BuildingIcon}
           change={3.1}
           changeType="positive"
         />
         <StatCard
           title="Total Accounts"
           value={stats.totalAccounts.toLocaleString()}
-          icon={CurrencyDollarIcon}
+          icon={DollarSignIcon}
           change={-1.2}
           changeType="negative"
         />

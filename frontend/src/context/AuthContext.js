@@ -1,6 +1,6 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { authService } from '@/services/authService';
+import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();

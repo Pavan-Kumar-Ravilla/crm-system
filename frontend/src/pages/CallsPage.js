@@ -1,6 +1,6 @@
 import React from 'react';
-import PageHeader from '@/components/layout/PageHeader';
-import Card from '@/components/ui/Card';
+import PageHeader from '../components/layout/PageHeader';
+import Card from '../components/ui/Card';
 import { PhoneIcon } from 'lucide-react';
 
 const CallsPage = () => {

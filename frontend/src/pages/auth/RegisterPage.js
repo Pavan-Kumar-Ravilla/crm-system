@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as yup from 'yup';
-import { useAuth } from '@/context/AuthContext';
-import DynamicForm from '@/components/forms/DynamicForm';
-import Card from '@/components/ui/Card';
+import { useAuth } from '../../context/AuthContext';
+import DynamicForm from '../../components/forms/DynamicForm';
+import Card from '../../components/ui/Card';
 
 const registerSchema = yup.object().shape({
   firstName: yup.string().required('First name is required').min(2, 'Must be at least 2 characters'),

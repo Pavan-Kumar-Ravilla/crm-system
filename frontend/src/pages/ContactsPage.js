@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { PlusIcon, DownloadIcon, UserGroupIcon } from 'lucide-react';
-import PageHeader from '@/components/layout/PageHeader';
-import DataTable from '@/components/ui/DataTable';
-import Modal from '@/components/ui/Modal';
-import ContactForm from '@/components/forms/ContactForm';
-import LoadingSpinner from '@/components/layout/LoadingSpinner';
-import EmptyState from '@/components/layout/EmptyState';
+import { PlusIcon, DownloadIcon, UsersIcon } from 'lucide-react';
+import PageHeader from '../components/layout/PageHeader';
+import DataTable from '../components/ui/DataTable';
+import Modal from '../components/ui/Modal';
+import ContactForm from '../components/forms/ContactForm';
+import LoadingSpinner from '../components/layout/LoadingSpinner';
+import EmptyState from '../components/layout/EmptyState';
 
 const mockContacts = [
   {
@@ -30,17 +30,6 @@ const mockContacts = [
     department: 'Sales',
     accountName: 'Innovate Solutions',
     accountId: 2
-  },
-  {
-    id: 3,
-    firstName: 'Lisa',
-    lastName: 'Anderson',
-    email: 'lisa.anderson@futurepro.com',
-    phone: '+1 (555) 456-7890',
-    title: 'Product Manager',
-    department: 'Product',
-    accountName: 'FuturePro Systems',
-    accountId: 3
   }
 ];
 
@@ -121,23 +110,6 @@ const ContactsPage = () => {
     }
   ];
 
-  const bulkActions = [
-    {
-      label: 'Export Selected',
-      icon: <DownloadIcon />,
-      onClick: (selectedIds) => {
-        console.log('Export contacts:', selectedIds);
-      }
-    },
-    {
-      label: 'Delete Selected',
-      variant: 'danger',
-      onClick: (selectedIds) => {
-        console.log('Delete contacts:', selectedIds);
-      }
-    }
-  ];
-
   const handleCreateContact = async (data) => {
     console.log('Creating contact:', data);
     setIsCreateModalOpen(false);
@@ -177,7 +149,7 @@ const ContactsPage = () => {
 
       {contacts.length === 0 ? (
         <EmptyState
-          icon={<UserGroupIcon className="w-12 h-12" />}
+          icon={<UsersIcon className="w-12 h-12" />}
           title="No contacts yet"
           description="Start building your network by adding your first contact."
           action={{
@@ -197,7 +169,6 @@ const ContactsPage = () => {
           selectedRows={selectedContacts}
           onSelectionChange={setSelectedContacts}
           actions={actions}
-          bulkActions={bulkActions}
           emptyMessage="No contacts found"
         />
       )}

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
 import { PlusIcon, DownloadIcon, TrendingUpIcon } from 'lucide-react';
-import PageHeader from '@/components/layout/PageHeader';
-import DataTable from '@/components/ui/DataTable';
-import Modal from '@/components/ui/Modal';
-import Badge from '@/components/ui/Badge';
-import OpportunityForm from '@/components/forms/OpportunityForm';
-import LoadingSpinner from '@/components/layout/LoadingSpinner';
-import EmptyState from '@/components/layout/EmptyState';
+import PageHeader from '../components/layout/PageHeader';
+import DataTable from '../components/ui/DataTable';
+import Modal from '../components/ui/Modal';
+import Badge from '../components/ui/Badge';
+import OpportunityForm from '../components/forms/OpportunityForm';
+import LoadingSpinner from '../components/layout/LoadingSpinner';
+import EmptyState from '../components/layout/EmptyState';
 
 const mockOpportunities = [
   {
@@ -52,6 +52,18 @@ const mockOpportunities = [
     type: 'Existing Customer - Replacement',
     leadSource: 'Trade Show'
   }
+];
+
+const mockAccounts = [
+  { id: 1, name: 'TechCorp Inc' },
+  { id: 2, name: 'Innovate Solutions' },
+  { id: 3, name: 'FuturePro Systems' }
+];
+
+const mockContacts = [
+  { id: 1, firstName: 'Emily', lastName: 'Brown', accountId: 1 },
+  { id: 2, firstName: 'Robert', lastName: 'Wilson', accountId: 2 },
+  { id: 3, firstName: 'Lisa', lastName: 'Anderson', accountId: 3 }
 ];
 
 const OpportunitiesPage = () => {
@@ -282,4 +294,4 @@ const OpportunitiesPage = () => {
   );
 };
 
-export default OpportunitiesPage; 
+export default OpportunitiesPage;

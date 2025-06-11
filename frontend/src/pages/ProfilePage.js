@@ -1,9 +1,9 @@
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import PageHeader from '@/components/layout/PageHeader';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import { useAuth } from '../context/AuthContext';
+import PageHeader from '../components/layout/PageHeader';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 import { UserCircleIcon } from 'lucide-react';
 
 const ProfilePage = () => {

@@ -1,285 +1,187 @@
-import React from 'react';
-import * as yup from 'yup';
-import DynamicForm from './DynamicForm';
+import React, { useState } from 'react';
+import { useQuery } from 'react-query';
+import { PlusIcon, DownloadIcon, BuildingIcon } from 'lucide-react';
+import PageHeader from '../components/layout/PageHeader';
+import DataTable from '../components/ui/DataTable';
+import Modal from '../components/ui/Modal';
+import Badge from '../components/ui/Badge';
+import AccountForm from '../components/forms/AccountForm';
+import LoadingSpinner from '../components/layout/LoadingSpinner';
+import EmptyState from '../components/layout/EmptyState';
 
-const accountSchema = yup.object().shape({
-  name: yup.string().required('Account name is required').min(2, 'Must be at least 2 characters'),
-  type: yup.string().nullable(),
-  industry: yup.string().nullable(),
-  parentAccountId: yup.string().nullable(),
-  website: yup.string().url('Invalid website URL').nullable(),
-  phone: yup.string().nullable(),
-  fax: yup.string().nullable(),
-  annualRevenue: yup.number().min(0, 'Annual revenue must be positive').nullable(),
-  employees: yup.number().min(0, 'Number of employees must be positive').nullable(),
-  ownership: yup.string().nullable(),
-  tickerSymbol: yup.string().max(10, 'Ticker symbol cannot exceed 10 characters').nullable(),
-  rating: yup.string().nullable(),
-  description: yup.string().max(1000, 'Description cannot exceed 1000 characters').nullable(),
-  // Billing Address
-  billingStreet: yup.string().nullable(),
-  billingCity: yup.string().nullable(),
-  billingState: yup.string().nullable(),
-  billingZipCode: yup.string().nullable(),
-  billingCountry: yup.string().nullable(),
-  // Shipping Address
-  shippingStreet: yup.string().nullable(),
-  shippingCity: yup.string().nullable(),
-  shippingState: yup.string().nullable(),
-  shippingZipCode: yup.string().nullable(),
-  shippingCountry: yup.string().nullable(),
-  // SLA Information
-  slaType: yup.string().nullable(),
-  slaExpiryDate: yup.date().nullable(),
-});
+const mockAccounts = [
+  {
+    id: 1,
+    name: 'TechCorp Inc',
+    type: 'Customer',
+    industry: 'Technology',
+    website: 'https://techcorp.com',
+    phone: '+1 (555) 123-4567',
+    annualRevenue: 5000000,
+    employees: 150
+  },
+  {
+    id: 2,
+    name: 'Innovate Solutions',
+    type: 'Prospect',
+    industry: 'Healthcare',
+    website: 'https://innovatesolutions.com',
+    phone: '+1 (555) 987-6543',
+    annualRevenue: 2500000,
+    employees: 75
+  }
+];
 
-const AccountForm = ({ 
-  defaultValues = {}, 
-  onSubmit, 
-  onCancel, 
-  isLoading = false,
-  accounts = [] // For parent account selection
-}) => {
-  const fields = [
-    // Basic Information
+const AccountsPage = () => {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
+
+  const { data: accounts = [], isLoading, refetch } = useQuery(
+    'accounts',
+    () => Promise.resolve(mockAccounts),
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  const columns = [
     {
-      name: 'name',
-      type: 'text',
-      label: 'Account Name',
-      placeholder: 'Enter account/company name',
-      required: true
+      title: 'Account Name',
+      accessor: 'name',
+      sortable: true
     },
     {
-      name: 'type',
-      type: 'select',
-      label: 'Account Type',
-      placeholder: 'Select account type',
-      options: [
-        { value: 'Customer', label: 'Customer' },
-        { value: 'Prospect', label: 'Prospect' },
-        { value: 'Partner', label: 'Partner' },
-        { value: 'Competitor', label: 'Competitor' },
-        { value: 'Other', label: 'Other' }
-      ]
+      title: 'Type',
+      accessor: 'type',
+      sortable: true,
+      render: (value) => <Badge variant="info">{value}</Badge>
     },
     {
-      name: 'parentAccountId',
-      type: 'select',
-      label: 'Parent Account',
-      placeholder: 'Select parent account (if applicable)',
-      options: accounts
-        .filter(account => account.id !== defaultValues.id) // Prevent self-reference
-        .map(account => ({
-          value: account.id,
-          label: account.name
-        }))
-    },
-    
-    // Industry and Classification
-    {
-      name: 'industry',
-      type: 'select',
-      label: 'Industry',
-      placeholder: 'Select industry',
-      options: [
-        { value: 'Technology', label: 'Technology' },
-        { value: 'Healthcare', label: 'Healthcare' },
-        { value: 'Finance', label: 'Finance' },
-        { value: 'Manufacturing', label: 'Manufacturing' },
-        { value: 'Retail', label: 'Retail' },
-        { value: 'Education', label: 'Education' },
-        { value: 'Government', label: 'Government' },
-        { value: 'Non-profit', label: 'Non-profit' },
-        { value: 'Real Estate', label: 'Real Estate' },
-        { value: 'Transportation', label: 'Transportation' },
-        { value: 'Energy', label: 'Energy' },
-        { value: 'Agriculture', label: 'Agriculture' },
-        { value: 'Entertainment', label: 'Entertainment' },
-        { value: 'Hospitality', label: 'Hospitality' },
-        { value: 'Construction', label: 'Construction' },
-        { value: 'Other', label: 'Other' }
-      ]
+      title: 'Industry',
+      accessor: 'industry',
+      sortable: true
     },
     {
-      name: 'rating',
-      type: 'select',
-      label: 'Account Rating',
-      placeholder: 'Select account rating',
-      options: [
-        { value: 'Hot', label: 'Hot' },
-        { value: 'Warm', label: 'Warm' },
-        { value: 'Cold', label: 'Cold' }
-      ]
-    },
-    
-    // Contact Information
-    {
-      name: 'website',
-      type: 'url',
-      label: 'Website',
-      placeholder: 'Enter website URL (https://example.com)'
+      title: 'Revenue',
+      accessor: 'annualRevenue',
+      sortable: true,
+      type: 'currency'
     },
     {
-      name: 'phone',
-      type: 'tel',
-      label: 'Main Phone',
-      placeholder: 'Enter main phone number'
-    },
-    {
-      name: 'fax',
-      type: 'tel',
-      label: 'Fax Number',
-      placeholder: 'Enter fax number'
-    },
-    
-    // Financial Information
-    {
-      name: 'annualRevenue',
-      type: 'number',
-      label: 'Annual Revenue ($)',
-      placeholder: 'Enter annual revenue'
-    },
-    {
-      name: 'employees',
-      type: 'number',
-      label: 'Number of Employees',
-      placeholder: 'Enter number of employees'
-    },
-    
-    // Company Details
-    {
-      name: 'ownership',
-      type: 'select',
-      label: 'Ownership Type',
-      placeholder: 'Select ownership type',
-      options: [
-        { value: 'Public', label: 'Public' },
-        { value: 'Private', label: 'Private' },
-        { value: 'Subsidiary', label: 'Subsidiary' },
-        { value: 'Government', label: 'Government' },
-        { value: 'Non-profit', label: 'Non-profit' },
-        { value: 'Other', label: 'Other' }
-      ]
-    },
-    {
-      name: 'tickerSymbol',
-      type: 'text',
-      label: 'Ticker Symbol',
-      placeholder: 'Enter stock ticker symbol (for public companies)'
-    },
-    
-    // Billing Address
-    {
-      name: 'billingStreet',
-      type: 'text',
-      label: 'Billing Street',
-      placeholder: 'Enter billing street address'
-    },
-    {
-      name: 'billingCity',
-      type: 'text',
-      label: 'Billing City',
-      placeholder: 'Enter billing city'
-    },
-    {
-      name: 'billingState',
-      type: 'text',
-      label: 'Billing State/Province',
-      placeholder: 'Enter billing state or province'
-    },
-    {
-      name: 'billingZipCode',
-      type: 'text',
-      label: 'Billing Zip/Postal Code',
-      placeholder: 'Enter billing zip or postal code'
-    },
-    {
-      name: 'billingCountry',
-      type: 'text',
-      label: 'Billing Country',
-      placeholder: 'Enter billing country'
-    },
-    
-    // Shipping Address
-    {
-      name: 'shippingStreet',
-      type: 'text',
-      label: 'Shipping Street',
-      placeholder: 'Enter shipping street address'
-    },
-    {
-      name: 'shippingCity',
-      type: 'text',
-      label: 'Shipping City',
-      placeholder: 'Enter shipping city'
-    },
-    {
-      name: 'shippingState',
-      type: 'text',
-      label: 'Shipping State/Province',
-      placeholder: 'Enter shipping state or province'
-    },
-    {
-      name: 'shippingZipCode',
-      type: 'text',
-      label: 'Shipping Zip/Postal Code',
-      placeholder: 'Enter shipping zip or postal code'
-    },
-    {
-      name: 'shippingCountry',
-      type: 'text',
-      label: 'Shipping Country',
-      placeholder: 'Enter shipping country'
-    },
-    
-    // SLA Information
-    {
-      name: 'slaType',
-      type: 'select',
-      label: 'SLA Type',
-      placeholder: 'Select SLA type',
-      options: [
-        { value: 'Gold', label: 'Gold' },
-        { value: 'Silver', label: 'Silver' },
-        { value: 'Bronze', label: 'Bronze' },
-        { value: 'None', label: 'None' }
-      ]
-    },
-    {
-      name: 'slaExpiryDate',
-      type: 'date',
-      label: 'SLA Expiry Date',
-      dependencies: [
-        {
-          field: 'slaType',
-          value: 'None',
-          condition: 'not_equals'
-        }
-      ]
-    },
-    
-    // Description
-    {
-      name: 'description',
-      type: 'textarea',
-      label: 'Description',
-      placeholder: 'Enter account description and notes',
-      rows: 4
+      title: 'Employees',
+      accessor: 'employees',
+      sortable: true
     }
   ];
 
+  const actions = [
+    {
+      label: 'Edit',
+      onClick: (account) => {
+        setEditingAccount(account);
+        setIsEditModalOpen(true);
+      }
+    },
+    {
+      label: 'Delete',
+      onClick: (account) => {
+        console.log('Delete account:', account);
+      },
+      danger: true
+    }
+  ];
+
+  const handleCreateAccount = async (data) => {
+    console.log('Creating account:', data);
+    setIsCreateModalOpen(false);
+    refetch();
+  };
+
+  const handleEditAccount = async (data) => {
+    console.log('Editing account:', data);
+    setIsEditModalOpen(false);
+    setEditingAccount(null);
+    refetch();
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner size="lg" className="py-12" />;
+  }
+
   return (
-    <DynamicForm
-      fields={fields}
-      schema={accountSchema}
-      defaultValues={defaultValues}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-      isLoading={isLoading}
-      submitLabel={defaultValues.id ? 'Update Account' : 'Create Account'}
-      layout="horizontal"
-    />
+    <div>
+      <PageHeader
+        title="Accounts"
+        subtitle="Manage your customer accounts and companies"
+        actions={[
+          {
+            label: 'Add Account',
+            icon: <PlusIcon />,
+            onClick: () => setIsCreateModalOpen(true)
+          }
+        ]}
+      />
+
+      {accounts.length === 0 ? (
+        <EmptyState
+          icon={<BuildingIcon className="w-12 h-12" />}
+          title="No accounts yet"
+          description="Start by adding your first customer account."
+          action={{
+            label: 'Add Account',
+            onClick: () => setIsCreateModalOpen(true),
+            icon: <PlusIcon />
+          }}
+        />
+      ) : (
+        <DataTable
+          data={accounts}
+          columns={columns}
+          loading={isLoading}
+          searchable
+          filterable
+          selectable
+          selectedRows={selectedAccounts}
+          onSelectionChange={setSelectedAccounts}
+          actions={actions}
+          emptyMessage="No accounts found"
+        />
+      )}
+
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Create New Account"
+        size="lg"
+      >
+        <AccountForm
+          accounts={accounts}
+          onSubmit={handleCreateAccount}
+          onCancel={() => setIsCreateModalOpen(false)}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingAccount(null);
+        }}
+        title="Edit Account"
+        size="lg"
+      >
+        <AccountForm
+          defaultValues={editingAccount}
+          accounts={accounts}
+          onSubmit={handleEditAccount}
+          onCancel={() => {
+            setIsEditModalOpen(false);
+            setEditingAccount(null);
+          }}
+        />
+      </Modal>
+    </div>
   );
 };
 
-export default AccountForm;
+export default AccountsPage;

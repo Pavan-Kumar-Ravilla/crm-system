@@ -1,7 +1,7 @@
 import React from 'react';
-import PageHeader from '@/components/layout/PageHeader';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
+import PageHeader from '../components/layout/PageHeader';
+import Card from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
 import { CalendarIcon, PhoneIcon, MailIcon, UserIcon } from 'lucide-react';
 
 const mockActivities = [
