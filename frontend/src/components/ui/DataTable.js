@@ -5,8 +5,7 @@ import {
   ChevronDownIcon, 
   SearchIcon,
   FilterIcon,
-  MoreVerticalIcon,
-  CheckIcon
+  MoreVerticalIcon
 } from 'lucide-react';
 import Button from './Button';
 import Input from './Input';

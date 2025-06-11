@@ -3,11 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   UsersIcon,
-  BuildingOfficeIcon,
-  UserGroupIcon,
+  BuildingIcon,
+  Users2Icon,
   TrendingUpIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
+  FileTextIcon,
+  BarChart3Icon,
   CogIcon,
   PhoneIcon,
   CalendarIcon
@@ -19,13 +19,13 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Leads', href: '/leads', icon: UsersIcon },
-    { name: 'Contacts', href: '/contacts', icon: UserGroupIcon },
-    { name: 'Accounts', href: '/accounts', icon: BuildingOfficeIcon },
+    { name: 'Contacts', href: '/contacts', icon: Users2Icon },
+    { name: 'Accounts', href: '/accounts', icon: BuildingIcon },
     { name: 'Opportunities', href: '/opportunities', icon: TrendingUpIcon },
     { name: 'Activities', href: '/activities', icon: CalendarIcon },
-    { name: 'Tasks', href: '/tasks', icon: DocumentTextIcon },
+    { name: 'Tasks', href: '/tasks', icon: FileTextIcon },
     { name: 'Calls', href: '/calls', icon: PhoneIcon },
-    { name: 'Reports', href: '/reports', icon: ChartBarIcon },
+    { name: 'Reports', href: '/reports', icon: BarChart3Icon },
     { name: 'Settings', href: '/settings', icon: CogIcon },
   ];
 

@@ -4,7 +4,6 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
-import Card from '../ui/Card';
 
 const DynamicForm = ({
   fields = [],
@@ -22,7 +21,6 @@ const DynamicForm = ({
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-    reset,
     watch
   } = useForm({
     resolver: schema ? yupResolver(schema) : undefined,

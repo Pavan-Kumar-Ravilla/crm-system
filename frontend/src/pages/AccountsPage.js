@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { PlusIcon, DownloadIcon, BuildingIcon } from 'lucide-react';
+import { PlusIcon, BuildingIcon } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
