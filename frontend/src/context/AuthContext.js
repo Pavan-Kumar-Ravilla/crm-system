@@ -138,12 +138,21 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.login(credentials);
       console.log('Login response:', response);
       
-      const { user, token } = response.data;
+      // Handle the response structure: { status: 'success', data: { user, token } }
+      const user = response.data.data.user;
+      const token = response.data.data.token;
+      
+      if (!user || !token) {
+        console.error('Missing user or token in response:', response.data);
+        throw new Error('Invalid response structure from server');
+      }
       
       localStorage.setItem('token', token);
       dispatch({ type: 'AUTH_SUCCESS', payload: { user, token } });
       
-      toast.success(`Welcome back, ${user.firstName}!`);
+      // Safe access to user name for toast
+      const userName = user.firstName || user.name || 'User';
+      toast.success(`Welcome back, ${userName}!`);
       return response;
     } catch (error) {
       console.error('Login error:', error);
@@ -166,12 +175,21 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.register(userData);
       console.log('Register response:', response);
       
-      const { user, token } = response.data;
+      // Handle the response structure: { status: 'success', data: { user, token } }
+      const user = response.data.data.user;
+      const token = response.data.data.token;
+      
+      if (!user || !token) {
+        console.error('Missing user or token in response:', response.data);
+        throw new Error('Invalid response structure from server');
+      }
       
       localStorage.setItem('token', token);
       dispatch({ type: 'AUTH_SUCCESS', payload: { user, token } });
       
-      toast.success(`Welcome, ${user.firstName}! Your account has been created.`);
+      // Safe access to user name for toast
+      const userName = user.firstName || user.name || 'User';
+      toast.success(`Welcome, ${userName}! Your account has been created.`);
       return response;
     } catch (error) {
       console.error('Registration error:', error);
@@ -197,7 +215,16 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const response = await authService.updateProfile(profileData);
-      dispatch({ type: 'UPDATE_USER', payload: response.data.user });
+      
+      // Handle different response structures
+      let user;
+      if (response.data.data) {
+        user = response.data.data.user;
+      } else {
+        user = response.data.user;
+      }
+      
+      dispatch({ type: 'UPDATE_USER', payload: user });
       toast.success('Profile updated successfully');
       return response;
     } catch (error) {

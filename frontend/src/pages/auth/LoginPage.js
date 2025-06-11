@@ -1,6 +1,6 @@
 // src/pages/auth/LoginPage.js
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import * as yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
 import DynamicForm from '../../components/forms/DynamicForm';
@@ -13,9 +13,18 @@ const loginSchema = yup.object().shape({
 });
 
 const LoginPage = () => {
-  const { login, isLoading, error } = useAuth();
+  const { login, isAuthenticated, isLoading, error } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [formError, setFormError] = useState('');
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = location.state?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const fields = [
     {
@@ -37,24 +46,33 @@ const LoginPage = () => {
   const handleLogin = async (data) => {
     try {
       setFormError('');
+      console.log('Form data:', data);
+      
       await login(data);
-      navigate('/dashboard');
+      
+      // Navigation will be handled by the useEffect above
+      // since isAuthenticated will become true
     } catch (error) {
       console.error('Login form error:', error);
-      // Error is already handled in auth context
+      // Error handling is done in the AuthContext
+      // But we can set a form-specific error if needed
     }
   };
 
   const handleDemoLogin = async () => {
     try {
       setFormError('');
+      console.log('Demo login attempt...');
+      
       await login({
         email: 'admin@crm.com',
         password: 'admin123'
       });
-      navigate('/dashboard');
+      
+      // Navigation will be handled by the useEffect above
     } catch (error) {
       console.error('Demo login error:', error);
+      setFormError('Demo login failed. Please try again.');
     }
   };
 
@@ -134,8 +152,23 @@ const LoginPage = () => {
                 Email: admin@crm.com<br />
                 Password: admin123
               </p>
+              <div className="mt-2 text-xs text-gray-400">
+                <strong>Note:</strong> Make sure your backend server is running on port 5000
+              </div>
             </div>
           </div>
+
+          {/* Debug information in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-blue-600 font-medium mb-1">Debug Info:</p>
+              <p className="text-xs text-blue-500">
+                API URL: {process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}<br />
+                Loading: {isLoading ? 'Yes' : 'No'}<br />
+                Authenticated: {isAuthenticated ? 'Yes' : 'No'}
+              </p>
+            </div>
+          )}
         </Card>
       </div>
     </div>
